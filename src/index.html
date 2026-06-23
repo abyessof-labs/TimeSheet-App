@@ -671,6 +671,8 @@ async function applyFilter() {
     const a = (data[slotKey] && data[slotKey].actual)  || { cat: 'none' };
     row.classList.toggle('filtered-out', p.cat !== activeFilter && a.cat !== activeFilter);
   });
+  // Hide the now-line while filtering; restore it when cleared.
+  updateNowLine();
 }
 
 // ── Donut chart ───────────────────────────────────────────────────────────────
@@ -880,8 +882,15 @@ function updateNowLine() {
   const isToday = currentDate === todayString();
   const mins = currentSlotMinutes();
 
-  // Highlight the current 15-min block (today only, within range).
+  // Clear any previous highlight first.
   document.querySelectorAll('#timesheetBody tr.now-slot').forEach(r => r.classList.remove('now-slot'));
+
+  // When a category filter is active, rows are hidden/reordered, so the
+  // now-line and current-block highlight no longer line up with real time.
+  // Hide them entirely until the filter is cleared.
+  if (activeFilter) { line.style.display = 'none'; return; }
+
+  // Highlight the current 15-min block (today only, within range).
   if (isToday && mins >= START_MIN && mins < END_MIN) {
     const idx = Math.floor((mins - START_MIN) / STEP);
     const rows = document.querySelectorAll('#timesheetBody tr');
