@@ -1201,6 +1201,21 @@ setExportRange(ewFrom, ewTo);
 // Refresh when a reminder is submitted
 window.ts.onRefreshDay(() => { dayCache = null; buildTable(); drawChart(); drawWeekly(); });
 
+// When the window is re-shown from the tray (after clicking X to hide), jump
+// back to today and re-snap the view to the current time.
+window.ts.onWindowShown(() => {
+  const wasToday = currentDate === todayString();
+  currentDate = todayString();
+  if (!wasToday) {
+    // Different day was showing — rebuild fully, snap happens in onDateChange.
+    onDateChange();
+  } else {
+    // Already on today — just refresh the now-line and re-center.
+    updateNowLine();
+    requestAnimationFrame(snapToNow);
+  }
+});
+
 // Check for updates
 document.getElementById('checkUpdateBtn').addEventListener('click', async () => {
   const btn = document.getElementById('checkUpdateBtn');
