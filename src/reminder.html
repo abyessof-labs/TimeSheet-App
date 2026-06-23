@@ -100,7 +100,11 @@
     border: 1px solid var(--border); border-radius: 8px;
     padding: 8px; display: none; flex-direction: column; gap: 3px;
     box-shadow: 0 6px 20px rgba(0,0,0,.5); min-width: 140px;
+    /* Never exceed the small popup window; scroll internally if the list is long */
+    max-height: 180px; overflow-y: auto; scrollbar-width: thin;
   }
+  .cat-picker::-webkit-scrollbar { width: 6px; }
+  .cat-picker::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   .cat-picker.open { display: flex; }
   .cat-opt {
     display: flex; align-items: center; gap: 7px; padding: 4px 7px;
@@ -222,10 +226,35 @@ function buildPicker() {
 document.getElementById('catBtn').addEventListener('click', e => {
   e.stopPropagation();
   const picker = document.getElementById('catPicker');
-  const rect   = e.currentTarget.getBoundingClientRect();
-  picker.style.top  = (rect.bottom + 4) + 'px';
-  picker.style.left = rect.left + 'px';
+  const willOpen = !picker.classList.contains('open');
   picker.classList.toggle('open');
+  if (!willOpen) return;
+
+  const rect = e.currentTarget.getBoundingClientRect();
+  const margin = 6;
+  // Measure the picker now that it's visible.
+  const ph = picker.offsetHeight;
+  const pw = picker.offsetWidth;
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+
+  // Vertical: open downward if it fits, otherwise flip above the button.
+  const spaceBelow = vh - rect.bottom;
+  let top;
+  if (spaceBelow >= ph + margin || spaceBelow >= rect.top) {
+    top = rect.bottom + 4;
+  } else {
+    top = rect.top - ph - 4;            // flip up
+  }
+  // Clamp inside the window.
+  top = Math.max(margin, Math.min(top, vh - ph - margin));
+
+  // Horizontal: keep it on-screen too.
+  let left = Math.min(rect.left, vw - pw - margin);
+  left = Math.max(margin, left);
+
+  picker.style.top  = top + 'px';
+  picker.style.left = left + 'px';
 });
 document.addEventListener('click', () => closePicker());
 function closePicker() { document.getElementById('catPicker').classList.remove('open'); }
