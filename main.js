@@ -135,6 +135,11 @@ function createMain() {
   mainWin.on('close', (e) => {
     if (!isQuitting) { e.preventDefault(); mainWin.hide(); }
   });
+  // Each time the window is shown again from the tray, tell the renderer so it
+  // can jump back to "today" and re-snap the view to the current time.
+  mainWin.on('show', () => {
+    if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('windowShown');
+  });
 }
 
 function createReminder(slotKey, slotLabel, plannedData) {
