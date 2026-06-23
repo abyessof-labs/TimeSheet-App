@@ -31,7 +31,7 @@
     "publish": {
       "provider": "github",
       "owner": "grizzlylight-tech",
-      "repo": "TimeSheet",
+      "repo": "TimeSheet-App",
       "releaseType": "release"
     },
     "win": {
