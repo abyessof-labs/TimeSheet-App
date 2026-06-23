@@ -120,14 +120,15 @@
     display: none;
   }
   #nowLine::before {
-    content: ''; position: absolute; left: -1px; top: -5px;
-    width: 8px; height: 8px; border-radius: 50%; background: #ef4444;
+    content: ''; position: absolute; left: 2px; top: -5px;
+    width: 9px; height: 9px; border-radius: 50%; background: #ef4444;
+    box-shadow: 0 0 0 2px var(--bg);
   }
   #nowLine .now-time {
-    position: absolute; right: 2px; top: -9px;
+    position: absolute; right: 4px; top: -10px;
     font-size: 10px; font-weight: 700; color: #fff;
-    background: #ef4444; padding: 1px 5px; border-radius: 4px;
-    line-height: 1.3; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    background: #ef4444; padding: 2px 7px; border-radius: 10px;
+    line-height: 1.3; box-shadow: 0 1px 4px rgba(0,0,0,.35); white-space: nowrap;
   }
   /* current 15-min block highlight */
   tbody tr.now-slot td { background: rgba(239,68,68,.10); }
@@ -266,31 +267,43 @@
   .stats-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
   .stats-card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 18px; }
 
-  /* Bar chart with baseline + gridlines */
-  .bar-chart-wrap { position: relative; padding-left: 4px; }
-  .bar-chart {
-    display: flex; align-items: flex-end; gap: 5px; height: 190px;
-    border-bottom: 1.5px solid var(--border); padding-top: 6px;
-    background-image: repeating-linear-gradient(to top, transparent, transparent 46px, var(--border) 46px, var(--border) 47px);
-    background-size: 100% 47px;
+  /* Bar chart with y-axis, baseline + gridlines */
+  .chart-area { display: flex; gap: 10px; }
+  .y-axis {
+    display: flex; flex-direction: column; justify-content: space-between;
+    height: 170px; padding-bottom: 18px; /* aligns baseline with x-labels row */
+    flex-shrink: 0; width: 30px; text-align: right;
   }
-  .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0; flex: 1; min-width: 14px; max-width: 48px; cursor: pointer; height: 100%; }
+  .y-tick { font-size: 9.5px; color: var(--text-muted); font-weight: 500; line-height: 1; transform: translateY(-4px); }
+  .bar-chart-wrap { position: relative; flex: 1; min-width: 0; }
+  .bar-chart {
+    display: flex; align-items: flex-end; gap: 5px; height: 170px;
+    border-bottom: 1.5px solid var(--border); border-left: 1.5px solid var(--border);
+    padding: 0 4px;
+    background-image: repeating-linear-gradient(to top, transparent, transparent 41px, var(--border) 41px, var(--border) 42px);
+    background-size: 100% 42.5px;
+  }
+  .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0; flex: 1; min-width: 14px; max-width: 54px; cursor: pointer; height: 100%; position: relative; }
   .bar-col:hover .bar-stack { filter: brightness(1.12); }
-  .bar-stack { width: 64%; max-width: 30px; display: flex; flex-direction: column-reverse; border-radius: 6px 6px 0 0; overflow: hidden; min-height: 3px; transition: filter .12s; }
+  .bar-val { font-size: 9.5px; font-weight: 700; color: var(--text); margin-bottom: 3px; opacity: .85; }
+  .bar-stack { width: 60%; max-width: 26px; display: flex; flex-direction: column-reverse; border-radius: 5px 5px 0 0; overflow: hidden; min-height: 3px; transition: filter .12s; }
   .bar-seg { width: 100%; transition: height .3s ease; }
   .bar-label { font-size: 9.5px; color: var(--text-muted); white-space: pre; text-align: center; margin-top: 6px; line-height: 1.2; font-weight: 500; }
-  .chart-empty { display: flex; align-items: center; justify-content: center; height: 190px; color: var(--text-muted); font-size: 13px; }
-  .donut-center-wrap { display: flex; gap: 20px; align-items: center; }
-  #statsDonut { width: 96px; height: 96px; }
+  .chart-empty { display: flex; align-items: center; justify-content: center; height: 170px; color: var(--text-muted); font-size: 13px; }
+  .donut-center-wrap { display: flex; gap: 18px; align-items: center; }
+  #statsDonut { width: 88px; height: 88px; flex-shrink: 0; }
 
   /* Category table */
   .cat-table { width: 100%; border-collapse: collapse; }
   .cat-table tr { border-bottom: 1px solid var(--border); }
   .cat-table tr:last-child { border-bottom: none; }
-  .cat-table td { padding: 9px 4px; font-size: 12.5px; vertical-align: middle; }
-  .cat-table td:last-child { text-align: right; font-weight: 700; color: var(--text); white-space: nowrap; padding-left: 12px; }
+  .cat-table td { padding: 8px 4px; font-size: 12.5px; vertical-align: middle; }
+  .cat-table td.ct-name { width: 40%; white-space: nowrap; }
+  .cat-table td.ct-track { width: 40%; }
+  .cat-table td:last-child { text-align: right; font-weight: 700; color: var(--text); white-space: nowrap; padding-left: 10px; }
   .ct-pct { color: var(--text-muted); font-weight: 500; font-size: 10.5px; margin-top: 1px; }
-  .ct-bar { height: 5px; border-radius: 3px; margin-top: 6px; opacity: .65; transition: width .3s; }
+  .ct-bar-wrap { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .ct-bar { height: 100%; border-radius: 3px; transition: width .3s; }
 
   /* ══════════════════════════════════════════════════════════════
      EXPORT TAB
@@ -418,8 +431,11 @@
     <div class="stats-row">
       <div class="stats-card">
         <div class="stats-card-title">Hours per Day</div>
-        <div class="bar-chart-wrap">
-          <div class="bar-chart" id="barChart"></div>
+        <div class="chart-area">
+          <div class="y-axis" id="yAxis"></div>
+          <div class="bar-chart-wrap">
+            <div class="bar-chart" id="barChart"></div>
+          </div>
         </div>
       </div>
       <div class="stats-card">
@@ -1141,15 +1157,20 @@ async function renderStats(period) {
 
   // Bar chart
   const barChart = document.getElementById('barChart');
+  const yAxis    = document.getElementById('yAxis');
   barChart.innerHTML = '';
+  yAxis.innerHTML = '';
   // Show last N days intelligently
   const BAR_MAX = 60;
   const showDates = dates.length > BAR_MAX ? dates.slice(-BAR_MAX) : dates;
-  const barMax = Math.max(...showDates.map(d => dailyTotals[d] || 0), 1);
+  const maxHours = Math.max(...showDates.map(d => (dailyTotals[d] || 0) * 0.25), 0);
+  const niceTop = (v) => v <= 1 ? 1 : v <= 2 ? 2 : v <= 4 ? 4 : v <= 6 ? 6 : v <= 8 ? 8 : v <= 12 ? 12 : Math.ceil(v / 4) * 4;
+  const yTop = niceTop(maxHours);
 
   // Empty state when nothing is logged in the whole period
   if (totalSlots === 0) {
     barChart.style.display = 'none';
+    yAxis.style.visibility = 'hidden';
     let empty = document.getElementById('barEmpty');
     if (!empty) {
       empty = document.createElement('div');
@@ -1160,12 +1181,22 @@ async function renderStats(period) {
     empty.style.display = 'flex';
   } else {
     barChart.style.display = 'flex';
+    yAxis.style.visibility = 'visible';
     const empty = document.getElementById('barEmpty');
     if (empty) empty.style.display = 'none';
+    // Y-axis ticks (top -> 0), 4 divisions.
+    for (let i = 0; i <= 4; i++) {
+      const val = yTop * (1 - i / 4);
+      const tick = document.createElement('div');
+      tick.className = 'y-tick';
+      tick.textContent = (Number.isInteger(val) ? val : val.toFixed(1)) + 'h';
+      yAxis.appendChild(tick);
+    }
   }
 
   showDates.forEach(date => {
     const slots = dailyTotals[date] || 0;
+    const hours = slots * 0.25;
     const data  = allData[date] || {};
     const [dy, dm, dd] = date.split('-').map(Number);
     const dateObj = new Date(dy, dm - 1, dd);
@@ -1173,13 +1204,20 @@ async function renderStats(period) {
 
     const col = document.createElement('div');
     col.className = 'bar-col';
-    col.title = `${date}: ${(slots*0.25).toFixed(1)}h`;
+    col.title = `${date}: ${hours.toFixed(2)}h`;
+
+    // Value label above the bar (only when few enough bars to fit)
+    if (slots > 0 && showDates.length <= 31) {
+      const val = document.createElement('div');
+      val.className = 'bar-val';
+      val.textContent = hours.toFixed(hours < 10 ? 1 : 0);
+      col.appendChild(val);
+    }
 
     const stack = document.createElement('div');
     stack.className = 'bar-stack';
-    // Cap at 88% so the tallest bar always has headroom and never touches
-    // the top gridline.
-    const heightPct = (slots / barMax) * 88;
+    // Scale against the y-axis top so heights line up with the gridlines.
+    const heightPct = (hours / yTop) * 100;
     stack.style.height = `${heightPct}%`;
 
     if (slots > 0) {
@@ -1225,18 +1263,20 @@ async function renderStats(period) {
     const pct = catTotal > 0 ? Math.round(count / catTotal * 100) : 0;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>
+      <td class="ct-name">
         <div style="display:flex;align-items:center;gap:8px">
           <span class="dot" style="background:${cat.color};width:10px;height:10px;flex-shrink:0"></span>
           <span>${cat.label}</span>
         </div>
-        <div class="ct-bar" style="background:${cat.color};width:${Math.max(pct,3)}%"></div>
+      </td>
+      <td class="ct-track">
+        <div class="ct-bar-wrap"><div class="ct-bar" style="background:${cat.color};width:${Math.max(pct,2)}%"></div></div>
       </td>
       <td>${(count*0.25).toFixed(1)}h<div class="ct-pct">${pct}%</div></td>
     `;
     catTable.appendChild(tr);
   });
-  if (sorted.length === 0) catTable.innerHTML = '<tr><td colspan="2" style="color:var(--text-muted);text-align:center;padding:16px">No time logged yet</td></tr>';
+  if (sorted.length === 0) catTable.innerHTML = '<tr><td colspan="3" style="color:var(--text-muted);text-align:center;padding:16px">No time logged yet</td></tr>';
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
