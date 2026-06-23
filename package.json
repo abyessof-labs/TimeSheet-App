@@ -1,6 +1,6 @@
 {
   "name": "timesheet",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "Daily Timesheet",
   "author": "Jacen Fossey",
   "main": "main.js",
@@ -30,7 +30,7 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "grizzlylight-tech",
+      "owner": "abyessof-labs",
       "repo": "TimeSheet-App",
       "releaseType": "release"
     },
