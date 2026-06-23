@@ -145,7 +145,7 @@ function createMain() {
 function createReminder(slotKey, slotLabel, plannedData) {
   if (reminderWin) { reminderWin.focus(); return; }
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
-  const W = 360, H = 220;
+  const W = 360, H = 260;
   reminderWin = new BrowserWindow({
     width: W, height: H, x: sw - W - 16, y: sh - H - 16,
     frame: false, resizable: false, alwaysOnTop: true, skipTaskbar: true,
