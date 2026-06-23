@@ -269,26 +269,28 @@
   /* Bar chart with baseline + gridlines */
   .bar-chart-wrap { position: relative; padding-left: 4px; }
   .bar-chart {
-    display: flex; align-items: flex-end; gap: 4px; height: 180px;
-    border-bottom: 1.5px solid var(--border);
-    background-image: repeating-linear-gradient(to top, transparent, transparent 44px, var(--border) 44px, var(--border) 45px);
-    background-size: 100% 45px; padding-bottom: 0;
+    display: flex; align-items: flex-end; gap: 5px; height: 190px;
+    border-bottom: 1.5px solid var(--border); padding-top: 6px;
+    background-image: repeating-linear-gradient(to top, transparent, transparent 46px, var(--border) 46px, var(--border) 47px);
+    background-size: 100% 47px;
   }
-  .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0; flex: 1; min-width: 14px; max-width: 46px; cursor: pointer; height: 100%; }
-  .bar-col:hover .bar-stack { filter: brightness(1.15); box-shadow: 0 0 0 2px var(--accent) inset; }
-  .bar-stack { width: 72%; display: flex; flex-direction: column-reverse; border-radius: 5px 5px 0 0; overflow: hidden; min-height: 2px; transition: filter .12s; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0; flex: 1; min-width: 14px; max-width: 48px; cursor: pointer; height: 100%; }
+  .bar-col:hover .bar-stack { filter: brightness(1.12); }
+  .bar-stack { width: 64%; max-width: 30px; display: flex; flex-direction: column-reverse; border-radius: 6px 6px 0 0; overflow: hidden; min-height: 3px; transition: filter .12s; }
   .bar-seg { width: 100%; transition: height .3s ease; }
-  .bar-label { font-size: 9px; color: var(--text-muted); white-space: pre; text-align: center; margin-top: 5px; line-height: 1.15; }
-  .chart-empty { display: flex; align-items: center; justify-content: center; height: 180px; color: var(--text-muted); font-size: 13px; }
-  .donut-center-wrap { display: flex; gap: 18px; align-items: center; }
+  .bar-label { font-size: 9.5px; color: var(--text-muted); white-space: pre; text-align: center; margin-top: 6px; line-height: 1.2; font-weight: 500; }
+  .chart-empty { display: flex; align-items: center; justify-content: center; height: 190px; color: var(--text-muted); font-size: 13px; }
+  .donut-center-wrap { display: flex; gap: 20px; align-items: center; }
+  #statsDonut { width: 96px; height: 96px; }
 
   /* Category table */
   .cat-table { width: 100%; border-collapse: collapse; }
   .cat-table tr { border-bottom: 1px solid var(--border); }
   .cat-table tr:last-child { border-bottom: none; }
-  .cat-table td { padding: 8px 6px; font-size: 12px; vertical-align: middle; }
-  .cat-table td:last-child { text-align: right; font-weight: 600; color: var(--text); white-space: nowrap; padding-left: 12px; }
-  .ct-bar { height: 4px; border-radius: 2px; margin-top: 4px; opacity: 0.5; transition: width .3s; }
+  .cat-table td { padding: 9px 4px; font-size: 12.5px; vertical-align: middle; }
+  .cat-table td:last-child { text-align: right; font-weight: 700; color: var(--text); white-space: nowrap; padding-left: 12px; }
+  .ct-pct { color: var(--text-muted); font-weight: 500; font-size: 10.5px; margin-top: 1px; }
+  .ct-bar { height: 5px; border-radius: 3px; margin-top: 6px; opacity: .65; transition: width .3s; }
 
   /* ══════════════════════════════════════════════════════════════
      EXPORT TAB
@@ -310,6 +312,25 @@
   .export-btn:hover { opacity: .85; }
   .export-btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
   .export-btn.secondary:hover { border-color: var(--accent); }
+
+  /* ══════════════════════════════════════════════════════════════
+     SETTINGS TAB
+  ══════════════════════════════════════════════════════════════ */
+  .settings-panel { flex: 1; overflow-y: auto; padding: 28px 32px; max-width: 1180px; margin: 0 auto; width: 100%; }
+  .settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; max-width: 520px; }
+  .settings-card-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .settings-hint { font-size: 12px; color: var(--text-muted); margin: 0 0 18px; line-height: 1.5; }
+  .settings-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .settings-field { display: flex; flex-direction: column; gap: 6px; }
+  .settings-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+  .settings-time {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit;
+    outline: none; cursor: pointer; min-width: 130px;
+  }
+  .settings-time:focus { border-color: var(--accent); }
+  .settings-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .settings-status { font-size: 12px; color: #22c55e; margin-top: 12px; min-height: 18px; }
   .export-status { font-size: 12px; color: #22c55e; margin-top: 8px; min-height: 18px; }
 </style>
 </head>
@@ -321,6 +342,7 @@
   <button class="tab-btn active" data-tab="timesheet">Daily Log</button>
   <button class="tab-btn" data-tab="stats">Stats</button>
   <button class="tab-btn" data-tab="export">Export</button>
+  <button class="tab-btn" data-tab="settings">Settings</button>
   <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
     <span id="updateStatusText" style="font-size:11px;color:var(--text-muted)"></span>
     <button id="checkUpdateBtn" class="legend-manage-btn">Check for updates</button>
@@ -451,6 +473,33 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════
+     SETTINGS TAB
+═══════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-settings">
+  <div class="settings-panel">
+    <div class="settings-card">
+      <div class="settings-card-title">Daily Log Time Range</div>
+      <p class="settings-hint">Choose which hours the daily log shows. The grid is split into 15-minute blocks between these times.</p>
+      <div class="settings-row">
+        <div class="settings-field">
+          <label class="settings-label">Start time</label>
+          <input type="time" id="setStart" step="900" class="settings-time">
+        </div>
+        <div class="settings-field">
+          <label class="settings-label">End time</label>
+          <input type="time" id="setEnd" step="900" class="settings-time">
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button class="export-btn" id="saveRangeBtn">Save range</button>
+        <button class="export-btn secondary" id="resetRangeBtn">Reset to default</button>
+      </div>
+      <div class="settings-status" id="settingsStatus"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Category picker -->
 <div class="cat-picker" id="catPicker">
   <div class="cat-picker-title">Category</div>
@@ -473,10 +522,21 @@
 </div>
 
 <script>
-// ── Config ───────────────────────────────────────────────────────────────────
-const START_MIN = 4 * 60 + 30;
-const END_MIN   = 22 * 60 + 30;
-const STEP      = 15;
+// ── Config (time range is user-configurable via Settings) ────────────────────
+const STEP = 15;
+const DEFAULT_START_MIN = 4 * 60 + 30;   // 4:30 AM
+const DEFAULT_END_MIN   = 22 * 60 + 30;  // 10:30 PM
+
+function loadRangeSetting() {
+  let s = parseInt(localStorage.getItem('startMin'), 10);
+  let e = parseInt(localStorage.getItem('endMin'), 10);
+  if (isNaN(s)) s = DEFAULT_START_MIN;
+  if (isNaN(e)) e = DEFAULT_END_MIN;
+  // Sanity: ensure end is after start by at least one slot.
+  if (e <= s) { s = DEFAULT_START_MIN; e = DEFAULT_END_MIN; }
+  return { s, e };
+}
+let { s: START_MIN, e: END_MIN } = loadRangeSetting();
 
 function minutesToLabel(m) {
   const h = Math.floor(m / 60), mm = m % 60;
@@ -488,11 +548,18 @@ function minutesToKey(m) {
   return `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`;
 }
 
+// SLOTS is rebuilt in place whenever the range changes (kept as the same array
+// reference so all existing closures keep working).
 const SLOTS = [];
-for (let m = START_MIN; m < END_MIN; m += STEP) {
-  SLOTS.push({ key: minutesToKey(m), label: minutesToLabel(m), minutes: m });
+let TOTAL_SLOTS = 0;
+function rebuildSlots() {
+  SLOTS.length = 0;
+  for (let m = START_MIN; m < END_MIN; m += STEP) {
+    SLOTS.push({ key: minutesToKey(m), label: minutesToLabel(m), minutes: m });
+  }
+  TOTAL_SLOTS = SLOTS.length;
 }
-const TOTAL_SLOTS = SLOTS.length;
+rebuildSlots();
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentDate = todayString();
@@ -540,7 +607,16 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
-    if (btn.dataset.tab === 'stats') renderStats('week');
+    if (btn.dataset.tab === 'stats') renderStats(currentStatsPeriod);
+    if (btn.dataset.tab === 'timesheet') {
+      // The Daily Log panel was display:none while away, so the now-line's
+      // measurements were invalid. Re-draw it and re-center once the panel is
+      // laid out again.
+      requestAnimationFrame(() => {
+        updateNowLine();
+        snapToNow();
+      });
+    }
   });
 });
 
@@ -989,11 +1065,13 @@ document.getElementById('addCatBtn').addEventListener('click', () => {
 document.getElementById('newCatName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addCatBtn').click(); });
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
+let currentStatsPeriod = 'week';
 document.querySelectorAll('.period-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    renderStats(btn.dataset.period);
+    currentStatsPeriod = btn.dataset.period;
+    renderStats(currentStatsPeriod);
   });
 });
 
@@ -1099,7 +1177,9 @@ async function renderStats(period) {
 
     const stack = document.createElement('div');
     stack.className = 'bar-stack';
-    const heightPct = (slots / barMax) * 100;
+    // Cap at 88% so the tallest bar always has headroom and never touches
+    // the top gridline.
+    const heightPct = (slots / barMax) * 88;
     stack.style.height = `${heightPct}%`;
 
     if (slots > 0) {
@@ -1146,17 +1226,17 @@ async function renderStats(period) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px">
           <span class="dot" style="background:${cat.color};width:10px;height:10px;flex-shrink:0"></span>
           <span>${cat.label}</span>
         </div>
-        <div class="ct-bar" style="background:${cat.color};width:${pct}%"></div>
+        <div class="ct-bar" style="background:${cat.color};width:${Math.max(pct,3)}%"></div>
       </td>
-      <td>${(count*0.25).toFixed(1)}h<br><span style="color:var(--text-muted);font-weight:400;font-size:10px">${pct}%</span></td>
+      <td>${(count*0.25).toFixed(1)}h<div class="ct-pct">${pct}%</div></td>
     `;
     catTable.appendChild(tr);
   });
-  if (sorted.length === 0) catTable.innerHTML = '<tr><td colspan="2" style="color:var(--text-muted);text-align:center;padding:12px">No data</td></tr>';
+  if (sorted.length === 0) catTable.innerHTML = '<tr><td colspan="2" style="color:var(--text-muted);text-align:center;padding:16px">No time logged yet</td></tr>';
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
@@ -1245,11 +1325,57 @@ document.getElementById('themeBtn').addEventListener('click', () => {
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+function minutesToTimeInput(m) {
+  return `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`;
+}
+function timeInputToMinutes(v) {
+  const [h, m] = v.split(':').map(Number);
+  return h * 60 + m;
+}
+function populateSettingsInputs() {
+  document.getElementById('setStart').value = minutesToTimeInput(START_MIN);
+  document.getElementById('setEnd').value   = minutesToTimeInput(END_MIN);
+}
+function settingsStatus(msg, isErr) {
+  const el = document.getElementById('settingsStatus');
+  el.textContent = msg;
+  el.style.color = isErr ? '#ef4444' : '#22c55e';
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+function applyRange(newStart, newEnd) {
+  newStart = Math.round(newStart / STEP) * STEP;
+  newEnd   = Math.round(newEnd / STEP) * STEP;
+  if (newEnd - newStart < STEP) {
+    settingsStatus('End time must be after start time', true);
+    return false;
+  }
+  START_MIN = newStart;
+  END_MIN   = newEnd;
+  localStorage.setItem('startMin', String(START_MIN));
+  localStorage.setItem('endMin', String(END_MIN));
+  rebuildSlots();
+  dayCache = null;
+  buildTable().then(() => requestAnimationFrame(snapToNow));
+  drawChart();
+  drawWeekly();
+  populateSettingsInputs();
+  return true;
+}
+document.getElementById('saveRangeBtn').addEventListener('click', () => {
+  const s = timeInputToMinutes(document.getElementById('setStart').value);
+  const e = timeInputToMinutes(document.getElementById('setEnd').value);
+  if (applyRange(s, e)) settingsStatus('Time range saved');
+});
+document.getElementById('resetRangeBtn').addEventListener('click', () => {
+  if (applyRange(DEFAULT_START_MIN, DEFAULT_END_MIN)) settingsStatus('Reset to default (4:30 AM – 10:30 PM)');
+});
+
 async function init() {
   CATEGORIES = await window.ts.loadCategories();
   CAT_MAP    = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
   buildLegend();
   buildPicker();
+  populateSettingsInputs();
   onDateChange();
   startNowTimer();
 }
