@@ -1,8 +1,8 @@
 {
   "name": "timesheet",
-  "version": "1.5.8",
+  "version": "1.5.9",
   "description": "Daily Timesheet",
-  "author": "Jacen Fossey",
+  "author": "ABYESSOF Labs",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
