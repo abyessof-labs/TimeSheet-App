@@ -746,11 +746,16 @@ async function drawWeekly() {
   const grid  = document.getElementById('weekGrid');
   grid.innerHTML = '';
   const today    = todayString();
-  const weekStart = offsetDate(today, -6);
-  const weekData  = await window.ts.loadRange(weekStart, today);
+  // Show Monday–Friday of the CURRENT week (work week only).
+  const [ty, tm, td] = today.split('-').map(Number);
+  const dow = new Date(ty, tm - 1, td).getDay(); // 0=Sun .. 6=Sat
+  const mondayOffset = dow === 0 ? -6 : -(dow - 1); // days back to this week's Monday
+  const monday = offsetDate(today, mondayOffset);
+  const friday = offsetDate(monday, 4);
+  const weekData = await window.ts.loadRange(monday, friday);
 
-  for (let i = 6; i >= 0; i--) {
-    const dateStr = offsetDate(today, -i);
+  for (let i = 0; i < 5; i++) {
+    const dateStr = offsetDate(monday, i);
     const [y, m, d] = dateStr.split('-').map(Number);
     const dateObj = new Date(y, m - 1, d);
     const dayAbbr = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
