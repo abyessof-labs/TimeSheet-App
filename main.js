@@ -245,15 +245,42 @@ function scheduleReminders() {
 
 // ── Auto-update ───────────────────────────────────────────────────────────────
 
+function sendUpdateStatus(msg) {
+  if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('updateStatus', msg);
+}
+
 function setupAutoUpdate() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  // Don't let unhandled errors crash the flow; we report them to the UI instead.
+  autoUpdater.logger = null;
 
-  autoUpdater.on('update-not-available', () => {
-    if (mainWin) mainWin.webContents.send('updateStatus', "You're up to date");
+  autoUpdater.on('checking-for-update', () => sendUpdateStatus('Checking for updates…'));
+
+  autoUpdater.on('update-available', (info) => {
+    sendUpdateStatus(`Update found (v${info && info.version ? info.version : '?'}) — downloading…`);
+  });
+
+  autoUpdater.on('update-not-available', () => sendUpdateStatus("You're up to date"));
+
+  autoUpdater.on('download-progress', (p) => {
+    sendUpdateStatus(`Downloading update… ${Math.round(p.percent || 0)}%`);
+  });
+
+  autoUpdater.on('error', (err) => {
+    // In dev the app isn't packaged, so updates can't run — say so clearly
+    // instead of spinning forever.
+    const msg = (err && err.message) ? err.message : String(err);
+    if (!app.isPackaged) {
+      sendUpdateStatus('Updates only work in the installed app');
+    } else {
+      sendUpdateStatus('Update check failed — try again later');
+    }
+    console.error('autoUpdater error:', msg);
   });
 
   autoUpdater.on('update-downloaded', () => {
+    sendUpdateStatus('Update ready — restart to install');
     dialog.showMessageBox(mainWin, {
       type: 'info',
       title: 'Update Ready',
@@ -265,10 +292,22 @@ function setupAutoUpdate() {
     });
   });
 
-  autoUpdater.checkForUpdates().catch(() => {});
+  // Initial silent check on launch (only meaningful in the packaged app).
+  if (app.isPackaged) autoUpdater.checkForUpdates().catch(() => {});
 }
 
-ipcMain.handle('checkForUpdates', () => autoUpdater.checkForUpdates().catch(() => {}));
+ipcMain.handle('checkForUpdates', async () => {
+  // In dev, electron-updater throws — short-circuit with a clear message.
+  if (!app.isPackaged) {
+    sendUpdateStatus('Updates only work in the installed app');
+    return;
+  }
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (e) {
+    sendUpdateStatus('Update check failed — try again later');
+  }
+});
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
