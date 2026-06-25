@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, screen, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, screen, Tray, Menu, nativeImage, powerMonitor } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs   = require('fs');
@@ -129,7 +129,12 @@ function createMain() {
     width: 1200, height: 900, minWidth: 800, minHeight: 600,
     title: 'Timesheet', backgroundColor: '#0f1117',
     icon: path.join(__dirname, 'assets', 'icon.png'),
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'), contextIsolation: true,
+      // Keep renderer timers (e.g. the live now-line) accurate even when the
+      // window is hidden/minimized to the tray.
+      backgroundThrottling: false,
+    },
   });
   mainWin.loadFile(path.join(__dirname, 'src', 'index.html'));
   mainWin.on('close', (e) => {
@@ -218,24 +223,33 @@ function todayString() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-function msUntilNextQuarter() {
-  const now    = new Date();
-  const msIntoQ = ((now.getMinutes() % 15) * 60 + now.getSeconds()) * 1000 + now.getMilliseconds();
-  return 15 * 60 * 1000 - msIntoQ;
-}
-
-function prevSlotInfo() {
-  const now      = new Date();
+// The quarter-hour that just ended (the block the user should log).
+function prevSlotInfo(ref) {
+  const now      = ref || new Date();
   const totalMin = now.getHours() * 60 + now.getMinutes();
   const prevMin  = Math.floor(totalMin / 15) * 15 - 15;
   if (prevMin < 0) return null;
   const h = Math.floor(prevMin / 60), m = prevMin % 60;
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return {
+    // Unique id for the just-ended quarter, used to avoid double/missed fires.
+    qid:   `${todayString()} ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,
     key:   `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,
     label: `${h12}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`,
   };
 }
+
+// Which quarter-hour boundary are we currently in? (id of the boundary that
+// most recently passed). Returns null before the first boundary of the day.
+function currentQuarterId() {
+  const now      = new Date();
+  const totalMin = now.getHours() * 60 + now.getMinutes();
+  const qStart   = Math.floor(totalMin / 15) * 15; // start of the quarter we're in now
+  const h = Math.floor(qStart / 60), m = qStart % 60;
+  return `${todayString()} ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+let lastFiredQuarter = null;
 
 function fireReminder() {
   const slot = prevSlotInfo();
@@ -244,8 +258,36 @@ function fireReminder() {
   createReminder(slot.key, slot.label, (dayData[slot.key] && dayData[slot.key].planned) || null);
 }
 
+// Robust, drift-free scheduler.
+//
+// Instead of a single long-lived 15-minute setInterval (which Chromium throttles
+// when the window is in the background and which drifts after sleep/suspend), we
+// run a lightweight watchdog every few seconds. Each tick re-reads the wall
+// clock: the moment we enter a new quarter-hour we fire exactly once for the
+// quarter that just ended. This self-corrects after the machine sleeps, the
+// timer is throttled, or the clock changes.
+function reminderWatchdog() {
+  const qid = currentQuarterId();
+  // On first run, seed lastFiredQuarter to the CURRENT quarter so we don't
+  // immediately pop a reminder for a block the user is still in.
+  if (lastFiredQuarter === null) { lastFiredQuarter = qid; return; }
+  if (qid !== lastFiredQuarter) {
+    lastFiredQuarter = qid;
+    fireReminder();
+  }
+}
+
+let watchdogTimer = null;
 function scheduleReminders() {
-  setTimeout(() => { fireReminder(); setInterval(fireReminder, 15 * 60 * 1000); }, msUntilNextQuarter());
+  if (watchdogTimer) clearInterval(watchdogTimer);
+  reminderWatchdog();                       // seed lastFiredQuarter
+  watchdogTimer = setInterval(reminderWatchdog, 10 * 1000); // check every 10s
+  // Also re-check immediately when the system wakes from sleep, so a missed
+  // boundary fires right away instead of up to 10s later.
+  try {
+    powerMonitor.on('resume', reminderWatchdog);
+    powerMonitor.on('unlock-screen', reminderWatchdog);
+  } catch (e) { /* powerMonitor unavailable in some contexts */ }
 }
 
 // ── Auto-update ───────────────────────────────────────────────────────────────
