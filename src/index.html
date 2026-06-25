@@ -261,7 +261,7 @@
   .stat-card .sc-value { font-size: 30px; font-weight: 800; color: var(--text); line-height: 1; letter-spacing: -.5px; }
   .stat-card .sc-sub { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
 
-  .stats-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .stats-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; align-items: start; }
   @media (max-width: 820px) { .stats-row { grid-template-columns: 1fr; } }
 
   .stats-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
@@ -290,8 +290,32 @@
   .bar-seg { width: 100%; transition: height .3s ease; }
   .bar-label { font-size: 9.5px; color: var(--text-muted); white-space: pre; text-align: center; margin-top: 6px; line-height: 1.2; font-weight: 500; }
   .chart-empty { display: flex; align-items: center; justify-content: center; height: 170px; color: var(--text-muted); font-size: 13px; }
-  .donut-center-wrap { display: flex; gap: 18px; align-items: center; }
-  #statsDonut { width: 88px; height: 88px; flex-shrink: 0; }
+  .donut-top { display: flex; justify-content: center; padding: 4px 0 18px; }
+  #statsDonut { width: 150px; height: 150px; }
+  .insights-row .stats-card { min-height: 0; }
+
+  /* Planned vs Actual rows */
+  .pva-row { margin-bottom: 14px; }
+  .pva-row:last-child { margin-bottom: 0; }
+  .pva-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+  .pva-head .pva-day { color: var(--text-muted); font-weight: 600; }
+  .pva-head .pva-val { color: var(--text); font-weight: 600; }
+  .pva-bars { display: flex; flex-direction: column; gap: 4px; }
+  .pva-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .pva-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+  .pva-fill.planned { background: #94a3b8; }
+  .pva-fill.actual  { background: var(--accent); }
+  .pva-legend { display: flex; gap: 16px; font-size: 11px; color: var(--text-muted); margin-top: 12px; }
+  .pva-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .pva-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  /* Time-of-day mini bars */
+  .tod-grid { display: flex; align-items: flex-end; gap: 6px; height: 130px; }
+  .tod-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .tod-bar { width: 70%; max-width: 40px; background: var(--accent); border-radius: 5px 5px 0 0; min-height: 3px; transition: height .3s; }
+  .tod-bar.dim { background: var(--surface2); }
+  .tod-val { font-size: 10px; font-weight: 700; color: var(--text); margin-bottom: 4px; opacity: .85; }
+  .tod-label { font-size: 10px; color: var(--text-muted); margin-top: 6px; text-align: center; font-weight: 500; }
 
   /* Category table */
   .cat-table { width: 100%; border-collapse: collapse; }
@@ -440,14 +464,26 @@
       </div>
       <div class="stats-card">
         <div class="stats-card-title">Category Breakdown (Actual)</div>
-        <div class="donut-center-wrap">
-          <svg id="statsDonut" viewBox="0 0 120 120" width="110" height="110" style="flex-shrink:0"></svg>
-          <div style="flex:1;min-width:0">
-            <table class="cat-table" id="catBreakTable"></table>
-          </div>
+        <div class="donut-top">
+          <svg id="statsDonut" viewBox="0 0 120 120" width="150" height="150"></svg>
         </div>
+        <table class="cat-table" id="catBreakTable"></table>
       </div>
     </div>
+
+    <!-- New insight stats -->
+    <div class="stats-row insights-row">
+      <div class="stats-card">
+        <div class="stats-card-title">Planned vs Actual</div>
+        <div id="plannedVsActual"></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-title">Most Productive Time of Day</div>
+        <div id="timeOfDay"></div>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="insightKpi" style="margin-top:16px"></div>
   </div>
 </div>
 
@@ -1291,7 +1327,136 @@ async function renderStats(period) {
     catTable.appendChild(tr);
   });
   if (sorted.length === 0) catTable.innerHTML = '<tr><td colspan="3" style="color:var(--text-muted);text-align:center;padding:16px">No time logged yet</td></tr>';
+  renderInsights(allData, dates, dailyTotals, totalSlots, totalHours, period);
 }
+
+// ── Extra insight stats ──────────────────────────────────────────────────────
+async function renderInsights(allData, dates, dailyTotals, totalSlots, totalHours, period) {
+  // ---- Planned vs Actual ----
+  let plannedSlotsTotal = 0, actualSlotsTotal = 0;
+  const perDay = [];
+  dates.forEach(date => {
+    const data = allData[date] || {};
+    let p = 0, a = 0;
+    SLOTS.forEach(s => {
+      const pc = (data[s.key] && data[s.key].planned) || { cat: 'none' };
+      const ac = (data[s.key] && data[s.key].actual)  || { cat: 'none' };
+      if (pc.cat !== 'none') p++;
+      if (ac.cat !== 'none') a++;
+    });
+    plannedSlotsTotal += p; actualSlotsTotal += a;
+    if (p > 0 || a > 0) perDay.push({ date, p, a });
+  });
+
+  const pvaEl = document.getElementById('plannedVsActual');
+  if (perDay.length === 0) {
+    pvaEl.innerHTML = '<div class="chart-empty" style="height:120px">No data in this period yet</div>';
+  } else {
+    const recent = perDay.slice(-6);
+    const maxSlots = Math.max(...recent.map(r => Math.max(r.p, r.a)), 1);
+    pvaEl.innerHTML = recent.map(r => {
+      const [y,m,d] = r.date.split('-').map(Number);
+      const lbl = new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'short', day:'numeric'});
+      return '<div class="pva-row">'
+        + '<div class="pva-head"><span class="pva-day">' + lbl + '</span><span class="pva-val">'
+        + (r.a*0.25).toFixed(1) + 'h / ' + (r.p*0.25).toFixed(1) + 'h planned</span></div>'
+        + '<div class="pva-bars">'
+        + '<div class="pva-track"><div class="pva-fill planned" style="width:' + (r.p/maxSlots)*100 + '%"></div></div>'
+        + '<div class="pva-track"><div class="pva-fill actual" style="width:' + (r.a/maxSlots)*100 + '%"></div></div>'
+        + '</div></div>';
+    }).join('')
+      + '<div class="pva-legend">'
+      + '<span><i class="pva-swatch" style="background:#94a3b8"></i>Planned</span>'
+      + '<span><i class="pva-swatch" style="background:var(--accent)"></i>Actual</span>'
+      + '</div>';
+  }
+
+  // ---- Most productive time of day ----
+  const buckets = { Morning: 0, Afternoon: 0, Evening: 0, Night: 0 };
+  dates.forEach(date => {
+    const data = allData[date] || {};
+    SLOTS.forEach(s => {
+      const ac = (data[s.key] && data[s.key].actual) || { cat: 'none' };
+      if (ac.cat === 'none') return;
+      const h = Math.floor(s.minutes / 60);
+      if (h >= 5 && h < 12) buckets.Morning++;
+      else if (h >= 12 && h < 17) buckets.Afternoon++;
+      else if (h >= 17 && h < 21) buckets.Evening++;
+      else buckets.Night++;
+    });
+  });
+  const todEl = document.getElementById('timeOfDay');
+  const todMax = Math.max(...Object.values(buckets), 1);
+  const todTotal = Object.values(buckets).reduce((s,v)=>s+v,0);
+  if (todTotal === 0) {
+    todEl.innerHTML = '<div class="chart-empty" style="height:120px">No data in this period yet</div>';
+  } else {
+    const peak = Object.entries(buckets).sort((a,b)=>b[1]-a[1])[0][0];
+    todEl.innerHTML = '<div class="tod-grid">' + Object.entries(buckets).map(([name,cnt]) =>
+      '<div class="tod-col">'
+      + '<div class="tod-val">' + (cnt*0.25).toFixed(1) + 'h</div>'
+      + '<div class="tod-bar ' + (name===peak?'':'dim') + '" style="height:' + (cnt/todMax)*100 + '%"></div>'
+      + '<div class="tod-label">' + name + '</div>'
+      + '</div>').join('') + '</div>';
+  }
+
+  // ---- Insight KPI cards: streak, plan adherence, weekly trend ----
+  const streaks = computeStreaks(dailyTotals);
+  const curStreak = streaks.current, longestStreak = streaks.longest;
+  const adherence = plannedSlotsTotal > 0 ? Math.round(actualSlotsTotal / plannedSlotsTotal * 100) : null;
+  const trend = await computeTrend(period, totalHours);
+
+  const insightKpi = document.getElementById('insightKpi');
+  const trendArrow = trend.delta > 0.05 ? '\u25b2' : trend.delta < -0.05 ? '\u25bc' : '\u2013';
+  const trendColor = trend.delta > 0.05 ? '#22c55e' : trend.delta < -0.05 ? '#ef4444' : '#94a3b8';
+  insightKpi.innerHTML =
+    '<div class="stat-card" style="--sc-accent:#22c55e"><div class="sc-label">Current Streak</div><div class="sc-value">' + curStreak + '<span style="font-size:14px;font-weight:600"> day' + (curStreak!==1?'s':'') + '</span></div><div class="sc-sub">Longest: ' + longestStreak + ' day' + (longestStreak!==1?'s':'') + '</div></div>'
+    + '<div class="stat-card" style="--sc-accent:#4f8ef7"><div class="sc-label">Plan Adherence</div><div class="sc-value">' + (adherence===null?'\u2014':adherence+'%') + '</div><div class="sc-sub">' + (adherence===null?'no plans set':'actual vs planned') + '</div></div>'
+    + '<div class="stat-card" style="--sc-accent:' + trendColor + '"><div class="sc-label">Vs Previous ' + trend.unit + '</div><div class="sc-value" style="color:' + trendColor + '">' + trendArrow + ' ' + Math.abs(trend.deltaPct) + '%</div><div class="sc-sub">' + trend.prevHours.toFixed(1) + 'h \u2192 ' + totalHours.toFixed(1) + 'h</div></div>';
+}
+
+function computeStreaks(dailyTotals) {
+  const days = Object.keys(dailyTotals).sort();
+  let longest = 0, run = 0;
+  for (let i = 0; i < days.length; i++) {
+    const hasData = dailyTotals[days[i]] > 0;
+    if (hasData) {
+      if (i > 0 && offsetDate(days[i-1], 1) === days[i] && dailyTotals[days[i-1]] > 0) run++;
+      else run = 1;
+      longest = Math.max(longest, run);
+    } else run = 0;
+  }
+  let current = 0;
+  let cursor = todayString();
+  while (dailyTotals[cursor] > 0) { current++; cursor = offsetDate(cursor, -1); }
+  return { current, longest };
+}
+
+async function computeTrend(period, totalHours) {
+  const { from, to } = periodDates(period);
+  const unitMap = { week:'Week', month:'Month', '3m':'Period', '6m':'Period', year:'Year', all:'Period', day:'Day' };
+  const unit = unitMap[period] || 'Period';
+  const dayMs = 86400000;
+  const [fy,fm,fd] = from.split('-').map(Number);
+  const [ty,tm,td] = to.split('-').map(Number);
+  const lenDays = Math.round((new Date(ty,tm-1,td) - new Date(fy,fm-1,fd)) / dayMs) + 1;
+  const prevTo   = offsetDate(from, -1);
+  const prevFrom = offsetDate(prevTo, -(lenDays - 1));
+  let prevHours = 0;
+  try {
+    const prevData = await window.ts.loadRange(prevFrom, prevTo);
+    let dd = prevFrom;
+    while (dd <= prevTo) {
+      const data = prevData[dd] || {};
+      SLOTS.forEach(s => { const a = (data[s.key] && data[s.key].actual) || { cat:'none' }; if (a.cat !== 'none') prevHours += 0.25; });
+      dd = offsetDate(dd, 1);
+    }
+  } catch (e) { /* ignore */ }
+  const delta = totalHours - prevHours;
+  const deltaPct = prevHours > 0 ? Math.round(delta / prevHours * 100) : (totalHours > 0 ? 100 : 0);
+  return { unit, prevHours, delta, deltaPct };
+}
+
 
 // ── Export ────────────────────────────────────────────────────────────────────
 function setExportRange(from, to) {
