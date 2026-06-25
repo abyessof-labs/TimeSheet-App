@@ -264,6 +264,13 @@
   .stats-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; align-items: start; }
   @media (max-width: 820px) { .stats-row { grid-template-columns: 1fr; } }
 
+  /* Two-column stats layout that fills vertical space */
+  .stats-cols { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; align-items: start; }
+  .stats-col { display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 820px) { .stats-cols { grid-template-columns: 1fr; } }
+  .insight-kpi-stack { display: flex; flex-direction: column; gap: 16px; }
+  .insight-kpi-stack .stat-card { padding: 16px 18px; }
+
   .stats-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
   .stats-card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 18px; }
 
@@ -291,7 +298,7 @@
   .bar-label { font-size: 9.5px; color: var(--text-muted); white-space: pre; text-align: center; margin-top: 6px; line-height: 1.2; font-weight: 500; }
   .chart-empty { display: flex; align-items: center; justify-content: center; height: 170px; color: var(--text-muted); font-size: 13px; }
   .donut-top { display: flex; justify-content: center; padding: 4px 0 18px; }
-  #statsDonut { width: 150px; height: 150px; }
+  #statsDonut { width: 172px; height: 172px; }
   .insights-row .stats-card { min-height: 0; }
 
   /* Planned vs Actual rows */
@@ -452,38 +459,40 @@
 
     <div class="stats-grid" id="statsKpi"></div>
 
-    <div class="stats-row">
-      <div class="stats-card">
-        <div class="stats-card-title">Hours per Day</div>
-        <div class="chart-area">
-          <div class="y-axis" id="yAxis"></div>
-          <div class="bar-chart-wrap">
-            <div class="bar-chart" id="barChart"></div>
+    <div class="stats-cols">
+      <!-- LEFT column: chart + insight panels stack to fill height -->
+      <div class="stats-col">
+        <div class="stats-card">
+          <div class="stats-card-title">Hours per Day</div>
+          <div class="chart-area">
+            <div class="y-axis" id="yAxis"></div>
+            <div class="bar-chart-wrap">
+              <div class="bar-chart" id="barChart"></div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-card-title">Category Breakdown (Actual)</div>
-        <div class="donut-top">
-          <svg id="statsDonut" viewBox="0 0 120 120" width="150" height="150"></svg>
+        <div class="stats-card">
+          <div class="stats-card-title">Planned vs Actual</div>
+          <div id="plannedVsActual"></div>
         </div>
-        <table class="cat-table" id="catBreakTable"></table>
+        <div class="stats-card">
+          <div class="stats-card-title">Most Productive Time of Day</div>
+          <div id="timeOfDay"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT column: category breakdown + insight KPI cards -->
+      <div class="stats-col">
+        <div class="stats-card">
+          <div class="stats-card-title">Category Breakdown (Actual)</div>
+          <div class="donut-top">
+            <svg id="statsDonut" viewBox="0 0 120 120" width="172" height="172"></svg>
+          </div>
+          <table class="cat-table" id="catBreakTable"></table>
+        </div>
+        <div class="insight-kpi-stack" id="insightKpi"></div>
       </div>
     </div>
-
-    <!-- New insight stats -->
-    <div class="stats-row insights-row">
-      <div class="stats-card">
-        <div class="stats-card-title">Planned vs Actual</div>
-        <div id="plannedVsActual"></div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-card-title">Most Productive Time of Day</div>
-        <div id="timeOfDay"></div>
-      </div>
-    </div>
-
-    <div class="stats-grid" id="insightKpi" style="margin-top:16px"></div>
   </div>
 </div>
 
@@ -733,8 +742,11 @@ async function drawChart() {
 function drawDonut(svgEl, legendEl, counts, total, showHrs) {
   const cx = svgEl.viewBox.baseVal.width  / 2;
   const cy = svgEl.viewBox.baseVal.height / 2;
-  const r  = cx - 26;
-  const sw = 20;
+  // Thinner ring on bigger donuts => larger center hole so the hours text
+  // never overlaps the colored segments.
+  const big = cx > 50;
+  const sw  = big ? 16 : 18;
+  const r   = cx - sw / 2 - 6;
   const circ = 2 * Math.PI * r;
 
   if (total === 0) {
@@ -758,8 +770,8 @@ function drawDonut(svgEl, legendEl, counts, total, showHrs) {
   });
 
   const hours = (total * 0.25).toFixed(1);
-  const fs1   = cx > 50 ? 20 : 14;
-  const fs2   = cx > 50 ? 11 : 9;
+  const fs1   = big ? 17 : 13;
+  const fs2   = big ? 9 : 8;
   svgEl.innerHTML = paths + `
     <text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="var(--text)" font-size="${fs1}" font-weight="700" font-family="Segoe UI,sans-serif">${hours}</text>
     <text x="${cx}" y="${cy + fs2 + 2}" text-anchor="middle" fill="var(--text-muted)" font-size="${fs2}" font-family="Segoe UI,sans-serif">hrs${showHrs?' actual':''}</text>
