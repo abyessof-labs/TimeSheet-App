@@ -129,6 +129,9 @@ function createMain() {
     width: 1200, height: 900, minWidth: 800, minHeight: 600,
     title: 'Timesheet', backgroundColor: '#0f1117',
     icon: path.join(__dirname, 'assets', 'icon.png'),
+    // Start hidden; reveal only once the content is painted to avoid the
+    // blank-window flash on launch (Fix A).
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), contextIsolation: true,
       // Keep renderer timers (e.g. the live now-line) accurate even when the
@@ -137,6 +140,7 @@ function createMain() {
     },
   });
   mainWin.loadFile(path.join(__dirname, 'src', 'index.html'));
+  mainWin.once('ready-to-show', () => { mainWin.show(); });
   mainWin.on('close', (e) => {
     if (!isQuitting) { e.preventDefault(); mainWin.hide(); }
   });
@@ -154,7 +158,7 @@ function createReminder(slotKey, slotLabel, plannedData) {
   reminderWin = new BrowserWindow({
     width: W, height: H, x: sw - W - 16, y: sh - H - 16,
     frame: false, resizable: false, alwaysOnTop: true, skipTaskbar: true,
-    backgroundColor: '#1a1d27',
+    backgroundColor: '#1a1d27', show: false, // reveal after paint (Fix A)
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
   });
   reminderWin.loadFile(path.join(__dirname, 'src', 'reminder.html'));
@@ -162,6 +166,8 @@ function createReminder(slotKey, slotLabel, plannedData) {
   reminderWin.webContents.once('did-finish-load', () => {
     reminderWin.webContents.send('reminderData', { slotKey, slotLabel, plannedData });
   });
+  // Show only once rendered so it appears fully-formed, not blank-then-fill.
+  reminderWin.once('ready-to-show', () => { if (reminderWin) reminderWin.show(); });
   setTimeout(() => { if (reminderWin) reminderWin.close(); }, 2 * 60 * 1000);
 }
 
@@ -339,8 +345,11 @@ function setupAutoUpdate() {
     });
   });
 
-  // Initial silent check on launch (only meaningful in the packaged app).
-  if (app.isPackaged) autoUpdater.checkForUpdates().catch(() => {});
+  // Defer the initial check so it never competes with rendering the window on
+  // launch (Fix C). Only meaningful in the packaged app.
+  if (app.isPackaged) {
+    setTimeout(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 4000);
+  }
 }
 
 ipcMain.handle('checkForUpdates', async () => {
@@ -371,11 +380,17 @@ if (!gotLock) {
   app.whenReady().then(() => {
     initPaths();
     migrateFromSqlite();
+    // Get the window on screen first (Fix D) ...
     createTray();
     createMain();
-    scheduleReminders();
-    setupAutoUpdate();
     app.on('activate', () => { if (!mainWin) { mainWin = null; createMain(); } });
+    // ... then start background work after the first paint, so it doesn't
+    // compete with showing the UI. The reminder watchdog seeds immediately
+    // (it only checks the clock), and auto-update is already deferred inside.
+    setImmediate(() => {
+      scheduleReminders();
+      setupAutoUpdate();
+    });
   });
 
   // App stays alive in tray — only quit via tray menu
