@@ -222,7 +222,19 @@
   .cat-modal-close:hover { background: var(--border); color: var(--text); }
   .cat-list-item { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--border); }
   .cat-list-swatch { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
-  .cat-list-name { flex: 1; font-size: 13px; }
+  .cat-list-name { flex: 1; font-size: 13px; min-width: 0; }
+  /* Work toggle per category */
+  .cat-work-toggle { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; flex-shrink: 0; user-select: none; }
+  .cat-work-toggle input { cursor: pointer; accent-color: var(--accent); }
+  .cat-work-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .cat-work-toggle input:checked + .cat-work-label { color: var(--accent); }
+  /* Used-color heatmap */
+  .used-colors { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .used-colors-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-right: 2px; }
+  .used-swatch { width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--border); cursor: pointer; padding: 0; transition: transform .1s; }
+  .used-swatch:hover { transform: scale(1.18); }
+  .cat-add-work { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); margin-top: 10px; cursor: pointer; }
+  .cat-add-work input { accent-color: var(--accent); cursor: pointer; }
   .cat-delete-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; padding: 1px 5px; border-radius: 4px; line-height: 1; }
   .cat-delete-btn:hover { background: rgba(239,68,68,.2); color: #ef4444; }
   .cat-delete-btn:disabled { opacity: .25; cursor: default; pointer-events: none; }
@@ -333,6 +345,7 @@
   .cat-table td.ct-track { width: 40%; }
   .cat-table td:last-child { text-align: right; font-weight: 700; color: var(--text); white-space: nowrap; padding-left: 10px; }
   .ct-pct { color: var(--text-muted); font-weight: 500; font-size: 10.5px; margin-top: 1px; }
+  .nonwork-tag { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
   .ct-bar-wrap { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
   .ct-bar { height: 100%; border-radius: 3px; transition: width .3s; }
 
@@ -574,11 +587,13 @@
       <button class="cat-modal-close" id="closeCatModal">✕</button>
     </div>
     <div id="catModalList"></div>
+    <div class="used-colors" id="usedColors"></div>
     <div class="cat-add-row">
       <input type="color" id="newCatColor" value="#3b82f6">
       <input type="text" id="newCatName" placeholder="New category name" maxlength="32">
       <button class="cat-add-btn" id="addCatBtn">Add</button>
     </div>
+    <label class="cat-add-work"><input type="checkbox" id="newCatWork" checked> Counts as work hours</label>
   </div>
 </div>
 
@@ -730,16 +745,31 @@ function getCatCountsFromData(data, side) {
   return counts;
 }
 
+// A category counts toward "work" hours unless explicitly flagged isWork:false.
+// 'none' (empty slots) never counts.
+function isWorkCat(catId) {
+  if (!catId || catId === 'none') return false;
+  const c = CAT_MAP[catId];
+  return c ? (c.isWork !== false) : true;
+}
+// Count only work slots from a counts-map { catId: slotCount }.
+function workSlots(counts) {
+  return Object.entries(counts).reduce((s, [catId, n]) => s + (isWorkCat(catId) ? n : 0), 0);
+}
+
 async function drawChart() {
   const data   = await loadDay(currentDate);
   const svg    = document.getElementById('donutChart');
   const legend = document.getElementById('chartLegend');
   const counts = getCatCountsFromData(data, 'actual');
   const total  = Object.values(counts).reduce((s, v) => s + v, 0);
-  drawDonut(svg, legend, counts, total, true);
+  // Center label shows WORK hours only; segments still show every category.
+  drawDonut(svg, legend, counts, total, true, workSlots(counts));
 }
 
-function drawDonut(svgEl, legendEl, counts, total, showHrs) {
+function drawDonut(svgEl, legendEl, counts, total, showHrs, hoursSlots) {
+  // hoursSlots: optional override for the number shown in the center (work-only).
+  const centerSlots = (hoursSlots === undefined) ? total : hoursSlots;
   const cx = svgEl.viewBox.baseVal.width  / 2;
   const cy = svgEl.viewBox.baseVal.height / 2;
   // Thinner ring on bigger donuts => larger center hole so the hours text
@@ -769,7 +799,7 @@ function drawDonut(svgEl, legendEl, counts, total, showHrs) {
     cumulative += proportion;
   });
 
-  const hours = (total * 0.25).toFixed(1);
+  const hours = (centerSlots * 0.25).toFixed(1);
   const fs1   = big ? 17 : 13;
   const fs2   = big ? 9 : 8;
   svgEl.innerHTML = paths + `
@@ -1108,9 +1138,35 @@ function renderCatModalList() {
     const item = document.createElement('div');
     item.className = 'cat-list-item';
     const isProtected = cat.id === 'none';
-    item.innerHTML = `<span class="cat-list-swatch" style="background:${cat.color}"></span><span class="cat-list-name">${cat.label}</span><button class="cat-delete-btn" title="Delete" ${isProtected?'disabled':''}>✕</button>`;
-    if (!isProtected) item.querySelector('.cat-delete-btn').addEventListener('click', () => deleteCategory(cat.id));
+    const isWork = cat.isWork !== false;
+    // 'none' has no work toggle; every other category gets a Work switch.
+    const workToggle = isProtected ? '' :
+      `<label class="cat-work-toggle" title="Counts toward your work-hours total">
+         <input type="checkbox" ${isWork?'checked':''} data-cat="${cat.id}">
+         <span class="cat-work-label">Work</span>
+       </label>`;
+    item.innerHTML = `<span class="cat-list-swatch" style="background:${cat.color}"></span>`
+      + `<span class="cat-list-name">${cat.label}</span>`
+      + workToggle
+      + `<button class="cat-delete-btn" title="Delete" ${isProtected?'disabled':''}>✕</button>`;
+    if (!isProtected) {
+      item.querySelector('.cat-delete-btn').addEventListener('click', () => deleteCategory(cat.id));
+      item.querySelector('input[type="checkbox"]').addEventListener('change', e => toggleCatWork(cat.id, e.target.checked));
+    }
     list.appendChild(item);
+  });
+  renderColorHeatmap();
+}
+
+// Show which colors are already in use under the color picker.
+function renderColorHeatmap() {
+  const wrap = document.getElementById('usedColors');
+  if (!wrap) return;
+  const used = CATEGORIES.filter(c => c.id !== 'none');
+  wrap.innerHTML = '<span class="used-colors-label">In use:</span>' +
+    used.map(c => `<button type="button" class="used-swatch" title="${c.label} — click to avoid / reuse" data-color="${c.color}" style="background:${c.color}"></button>`).join('');
+  wrap.querySelectorAll('.used-swatch').forEach(b => {
+    b.addEventListener('click', () => { document.getElementById('newCatColor').value = b.dataset.color; });
   });
 }
 
@@ -1121,16 +1177,26 @@ async function deleteCategory(id) {
   renderCatModalList(); buildLegend(); buildPicker(); drawChart();
 }
 
-async function addCategory(label, color) {
+async function addCategory(label, color, isWork) {
   label = label.trim(); if (!label) return;
   const id = label.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'') + '_' + Date.now();
   const otherIdx = CATEGORIES.findIndex(c => c.id === 'other');
-  const newCat = { id, label, color };
+  const newCat = { id, label, color, isWork: isWork !== false };
   if (otherIdx >= 0) CATEGORIES.splice(otherIdx, 0, newCat);
   else CATEGORIES.push(newCat);
   CAT_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
   await window.ts.saveCategories(CATEGORIES);
-  renderCatModalList(); buildLegend(); buildPicker();
+  renderCatModalList(); buildLegend(); buildPicker(); drawChart();
+}
+
+async function toggleCatWork(id, isWork) {
+  const c = CATEGORIES.find(x => x.id === id);
+  if (!c) return;
+  c.isWork = isWork;
+  CAT_MAP = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+  await window.ts.saveCategories(CATEGORIES);
+  buildLegend(); drawChart();
+  if (document.getElementById('tab-stats').classList.contains('active')) renderStats(currentStatsPeriod);
 }
 
 document.getElementById('closeCatModal').addEventListener('click', closeCatModal);
@@ -1138,7 +1204,8 @@ document.getElementById('catModalOverlay').addEventListener('click', e => { if (
 document.getElementById('addCatBtn').addEventListener('click', () => {
   const name = document.getElementById('newCatName').value;
   const color = document.getElementById('newCatColor').value;
-  if (name.trim()) { addCategory(name, color); document.getElementById('newCatName').value = ''; }
+  const isWork = document.getElementById('newCatWork').checked;
+  if (name.trim()) { addCategory(name, color, isWork); document.getElementById('newCatName').value = ''; document.getElementById('newCatWork').checked = true; }
 });
 document.getElementById('newCatName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('addCatBtn').click(); });
 
@@ -1188,14 +1255,16 @@ async function renderStats(period) {
 
   dates.forEach(date => {
     const data = allData[date] || {};
-    const daySlots = SLOTS.reduce((sum, s) => {
+    // daySlots = WORK hours only (drives Total/Avg/Best/streaks/chart).
+    // catCounts includes EVERY category so the breakdown still shows non-work.
+    let daySlots = 0;
+    SLOTS.forEach(s => {
       const a = (data[s.key] && data[s.key].actual) || { cat: 'none' };
       if (a.cat !== 'none') {
         catCounts[a.cat] = (catCounts[a.cat] || 0) + 1;
-        return sum + 1;
+        if (isWorkCat(a.cat)) daySlots++;
       }
-      return sum;
-    }, 0);
+    });
     if (daySlots > 0) {
       totalDays++;
       totalSlots += daySlots;
@@ -1206,7 +1275,8 @@ async function renderStats(period) {
 
   const totalHours = totalSlots * 0.25;
   const avgHours   = totalDays > 0 ? totalHours / totalDays : 0;
-  const topCatId   = Object.entries(catCounts).sort((a,b)=>b[1]-a[1])[0];
+  // Top category considers only work categories (non-work like Wasted Time excluded).
+  const topCatId   = Object.entries(catCounts).filter(([id]) => isWorkCat(id)).sort((a,b)=>b[1]-a[1])[0];
   const topCat     = topCatId ? CAT_MAP[topCatId[0]] : null;
 
   // KPI cards
@@ -1283,10 +1353,11 @@ async function renderStats(period) {
     stack.style.height = `${heightPct}%`;
 
     if (slots > 0) {
+      // Only work categories make up the bar (matches the work-hours value).
       const counts = {};
       SLOTS.forEach(s => {
         const a = (data[s.key] && data[s.key].actual) || { cat: 'none' };
-        if (a.cat !== 'none') counts[a.cat] = (counts[a.cat] || 0) + 1;
+        if (a.cat !== 'none' && isWorkCat(a.cat)) counts[a.cat] = (counts[a.cat] || 0) + 1;
       });
       Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([catId, count]) => {
         const cat = CAT_MAP[catId]; if (!cat) return;
@@ -1328,7 +1399,7 @@ async function renderStats(period) {
       <td class="ct-name">
         <div style="display:flex;align-items:center;gap:8px">
           <span class="dot" style="background:${cat.color};width:10px;height:10px;flex-shrink:0"></span>
-          <span>${cat.label}</span>
+          <span>${cat.label}${cat.isWork===false?' <span class="nonwork-tag">non-work</span>':''}</span>
         </div>
       </td>
       <td class="ct-track">
@@ -1353,8 +1424,8 @@ async function renderInsights(allData, dates, dailyTotals, totalSlots, totalHour
     SLOTS.forEach(s => {
       const pc = (data[s.key] && data[s.key].planned) || { cat: 'none' };
       const ac = (data[s.key] && data[s.key].actual)  || { cat: 'none' };
-      if (pc.cat !== 'none') p++;
-      if (ac.cat !== 'none') a++;
+      if (pc.cat !== 'none' && isWorkCat(pc.cat)) p++;
+      if (ac.cat !== 'none' && isWorkCat(ac.cat)) a++;
     });
     plannedSlotsTotal += p; actualSlotsTotal += a;
     if (p > 0 || a > 0) perDay.push({ date, p, a });
@@ -1460,7 +1531,7 @@ async function computeTrend(period, totalHours) {
     let dd = prevFrom;
     while (dd <= prevTo) {
       const data = prevData[dd] || {};
-      SLOTS.forEach(s => { const a = (data[s.key] && data[s.key].actual) || { cat:'none' }; if (a.cat !== 'none') prevHours += 0.25; });
+      SLOTS.forEach(s => { const a = (data[s.key] && data[s.key].actual) || { cat:'none' }; if (a.cat !== 'none' && isWorkCat(a.cat)) prevHours += 0.25; });
       dd = offsetDate(dd, 1);
     }
   } catch (e) { /* ignore */ }
