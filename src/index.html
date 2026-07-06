@@ -77,6 +77,18 @@
   #dateLabel:hover { color: var(--accent); }
   #dateInput { display: none; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 8px; font-size: 13px; }
   .today-btn { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; width: auto !important; padding: 0 10px !important; font-size: 12px !important; font-weight: 600; }
+  .select-mode-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+    border-radius: 6px; height: 28px; width: 88px; padding: 0;
+    font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    transition: background .12s, color .12s, border-color .12s;
+    white-space: nowrap; overflow: hidden;
+  }
+  .select-mode-btn:hover { border-color: var(--accent); color: var(--text); }
+  .select-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .select-mode-btn .sm-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; display: inline-block; flex-shrink: 0; }
+  .select-mode-btn.active .sm-dot { background: #fff; border-color: #fff; }
 
   /* ── Legend ── */
   .legend {
@@ -314,12 +326,22 @@
   .stats-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
   .stats-card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 18px; }
 
+  /* Card header row — title + controls on one line */
+  .card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  .card-header-row .stats-card-title { margin-bottom: 0; }
+
+  /* Total / Avg-per-day pill toggle (Hours per Day) */
+  .bar-mode-toggle { display: inline-flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 2px; gap: 2px; }
+  .bmt-btn { background: transparent; border: none; color: var(--text-muted); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+  .bmt-btn.active { background: var(--accent); color: #fff; }
+  .bar-mode-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
+
   /* Bar chart with y-axis, baseline + gridlines */
   .chart-area { display: flex; gap: 10px; }
   .y-axis {
     display: flex; flex-direction: column; justify-content: space-between;
     height: 170px; padding-bottom: 18px; /* aligns baseline with x-labels row */
-    flex-shrink: 0; width: 30px; text-align: right;
+    flex-shrink: 0; width: 38px; text-align: right;
   }
   .y-tick { font-size: 9.5px; color: var(--text-muted); font-weight: 500; line-height: 1; transform: translateY(-4px); }
   .bar-chart-wrap { position: relative; flex: 1; min-width: 0; }
@@ -468,7 +490,7 @@
       <input type="date" id="dateInput">
       <button id="nextDay" title="Next day">&#8250;</button>
       <button class="today-btn" id="todayBtn">Today</button>
-      <button id="selectModeBtn" title="Toggle multi-select. Then click category dots to select; Shift-click for a range. Or hold Ctrl and click a dot to enter select mode." style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:28px;">Select</button>
+      <button id="selectModeBtn" class="select-mode-btn" title="Toggle multi-select. Click category dots to select slots; Shift-click for a range. Or hold Ctrl and click a dot to enter select mode."><span class="sm-dot"></span><span id="selectModeLabel">Select</span></button>
     </div>
   </div>
 
@@ -535,7 +557,14 @@
       <!-- LEFT column: chart + insight panels stack to fill height -->
       <div class="stats-col">
         <div class="stats-card">
-          <div class="stats-card-title">Hours per Day</div>
+          <div class="card-header-row">
+            <div class="stats-card-title">Hours per Day</div>
+            <div class="bar-mode-toggle" id="barModeToggle">
+              <button class="bmt-btn active" data-mode="total">Total</button>
+              <button class="bmt-btn"        data-mode="avg">Avg / day</button>
+            </div>
+          </div>
+          <div class="bar-mode-sub" id="barModeSub"></div>
           <div class="chart-area">
             <div class="y-axis" id="yAxis"></div>
             <div class="bar-chart-wrap">
@@ -741,6 +770,11 @@ let selectMode = false;
 let bulkSide = 'actual';
 const selectedSlots = new Set();
 let selectAnchor = null;
+
+// Hours-per-Day bar chart mode: 'total' (sum of hours per bucket) or
+// 'avg' (average hours per active day in the bucket). Persisted in
+// localStorage so the choice sticks across launches.
+let barMode = (localStorage.getItem('barMode') === 'avg') ? 'avg' : 'total';
 function slotSelId(slotKey, side) { return `${slotKey}|${side}`; }
 function slotSelParse(id) { const [slotKey, side] = id.split('|'); return { slotKey, side }; }
 
@@ -1237,13 +1271,10 @@ function clearSelection() {
 
 function setSelectMode(on) {
   selectMode = !!on;
-  const btn = document.getElementById('selectModeBtn');
-  if (btn) {
-    btn.style.background   = selectMode ? 'var(--accent)' : 'var(--surface2)';
-    btn.style.color        = selectMode ? '#fff'          : 'var(--text-muted)';
-    btn.style.borderColor  = selectMode ? 'var(--accent)' : 'var(--border)';
-    btn.textContent = selectMode ? 'Selecting…' : 'Select';
-  }
+  const btn   = document.getElementById('selectModeBtn');
+  const label = document.getElementById('selectModeLabel');
+  if (btn)   btn.classList.toggle('active', selectMode);
+  if (label) label.textContent = selectMode ? 'Selecting' : 'Select';
   if (!selectMode) clearSelection();
   else refreshBulkUI();
 }
@@ -1471,6 +1502,16 @@ document.querySelectorAll('.period-btn').forEach(btn => {
   });
 });
 
+// Hours-per-Day Total / Avg-per-day toggle.
+document.querySelectorAll('#barModeToggle .bmt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    barMode = btn.dataset.mode;
+    localStorage.setItem('barMode', barMode);
+    renderStats(currentStatsPeriod);
+  });
+});
+
 function periodDates(period) {
   const today = todayString();
   switch(period) {
@@ -1501,10 +1542,19 @@ function periodDates(period) {
 //   - kind: 'day' | 'week' | 'month'
 function bucketizeForPeriod(dates, allData, period) {
   // Decide bucketing strategy from the period key so long ranges still fit.
+  //   week / month  → daily bars
+  //   3m            → weekly bars (≈13)
+  //   6m / year     → monthly bars (6–12)
+  //   all           → monthly if ≤24 months, otherwise quarterly
   let kind;
   if (period === 'week' || period === 'month') kind = 'day';
-  else if (period === '3m' || period === '6m') kind = 'week';
-  else kind = 'month'; // year / all
+  else if (period === '3m') kind = 'week';
+  else if (period === '6m' || period === 'year') kind = 'month';
+  else {
+    // 'all' — estimate span in months and pick monthly vs quarterly.
+    const span = dates.length; // days
+    kind = (span / 30) > 24 ? 'quarter' : 'month';
+  }
 
   const buckets = [];
   const bucketByKey = new Map();
@@ -1521,6 +1571,10 @@ function bucketizeForPeriod(dates, allData, period) {
       const monday = new Date(dt); monday.setDate(dt.getDate() - back);
       const my = monday.getFullYear(), mm = monday.getMonth() + 1, md = monday.getDate();
       return `${my}-${String(mm).padStart(2,'0')}-${String(md).padStart(2,'0')}`;
+    }
+    if (kind === 'quarter') {
+      const q = Math.floor((m - 1) / 3) + 1; // 1..4
+      return `${y}-Q${q}`;
     }
     // month bucket
     return `${y}-${String(m).padStart(2,'0')}`;
@@ -1548,6 +1602,7 @@ function bucketizeForPeriod(dates, allData, period) {
     if (date < b.firstDate) b.firstDate = date;
     if (date > b.lastDate)  b.lastDate  = date;
     const data = allData[date] || {};
+    let daySawWork = false;
     SLOTS.forEach(s => {
       const ac = (data[s.key] && data[s.key].actual)  || { cat: 'none' };
       const pc = (data[s.key] && data[s.key].planned) || { cat: 'none' };
@@ -1558,6 +1613,7 @@ function bucketizeForPeriod(dates, allData, period) {
           b.workCounts.total++;
           b.workCounts.byCat[ac.cat] = (b.workCounts.byCat[ac.cat] || 0) + 1;
           b.hours += 0.25;
+          daySawWork = true;
         }
       }
       if (pc.cat !== 'none') {
@@ -1566,35 +1622,51 @@ function bucketizeForPeriod(dates, allData, period) {
         if (isWorkCat(pc.cat)) b.plannedHours += 0.25;
       }
     });
+    if (daySawWork) b.activeDays = (b.activeDays || 0) + 1;
   });
 
-  // Axis labels + a stable index.
+  // Axis labels + a stable index. We compute a label "stride" to avoid
+  // crowding — only every Nth bucket gets a visible label when there are many.
+  const stride = buckets.length <= 14 ? 1
+    : buckets.length <= 20 ? 2
+    : buckets.length <= 40 ? 3
+    : Math.ceil(buckets.length / 12);
+
   buckets.forEach((b, i) => {
     b.idx = i;
+    b.activeDays = b.activeDays || 0;
+    const showLabel = (i % stride) === 0 || i === buckets.length - 1;
     const [fy, fm, fd] = b.firstDate.split('-').map(Number);
     const [ly, lm, ld] = b.lastDate.split('-').map(Number);
     if (kind === 'day') {
       const dt = new Date(fy, fm - 1, fd);
       const dow = dt.toLocaleDateString('en-US', { weekday: 'short' });
       // "Mo\n6" when there's room; day number only otherwise.
-      b.axisLabel = buckets.length <= 14
-        ? `${dow.slice(0,2)}\n${fd}`
-        : (buckets.length <= 31 ? `${fd}` : (dow === 'Mon' ? `${fd}` : ''));
+      const shortLabel = buckets.length <= 14 ? `${dow.slice(0,2)}\n${fd}` : `${fd}`;
+      b.axisLabel = showLabel ? shortLabel : '';
       b.tooltipTitle = new Date(fy, fm - 1, fd).toLocaleDateString('en-US', {
         weekday: 'long', month: 'short', day: 'numeric', year: 'numeric',
       });
       b.tooltipSub = '';
     } else if (kind === 'week') {
-      b.axisLabel = `${monthName(fm - 1).slice(0,3)} ${fd}`;
+      b.axisLabel = showLabel ? `${monthName(fm - 1).slice(0,3)} ${fd}` : '';
       b.tooltipTitle = `Week of ${monthName(fm - 1)} ${fd}`;
-      // Range subtitle — span first → last date in bucket.
-      b.tooltipSub = `${monthName(fm - 1)} ${fd} – ${monthName(lm - 1)} ${ld}`;
+      b.tooltipSub = `${monthName(fm - 1)} ${fd} – ${monthName(lm - 1)} ${ld}, ${ly}`;
+    } else if (kind === 'quarter') {
+      const q = Math.floor((fm - 1) / 3) + 1;
+      b.axisLabel = showLabel ? `Q${q} '${String(fy).slice(-2)}` : '';
+      b.tooltipTitle = `Q${q} ${fy}`;
+      b.tooltipSub = `${monthName(fm - 1)} – ${monthName(Math.min(fm + 1, 11))} ${fy}`;
     } else {
-      // month bucket — firstDate is anchored to the earliest day we saw in it
-      b.axisLabel = monthName(fm - 1);
+      // month bucket
+      b.axisLabel = showLabel
+        ? (buckets.length > 12 ? `${monthName(fm - 1).slice(0,1)}` : monthName(fm - 1))
+        : '';
       b.tooltipTitle = `${monthName(fm - 1)} ${fy}`;
       b.tooltipSub = '';
     }
+    // Convenience for Avg-per-active-day mode.
+    b.avgHours = b.activeDays > 0 ? b.hours / b.activeDays : 0;
   });
 
   return buckets;
@@ -1630,10 +1702,20 @@ function showBarTooltip(b) {
     }).join('');
   const emptyMsg = rows ? '' : '<div class="tt-empty">No time logged</div>';
   const subLine = b.tooltipSub ? `<div class="tt-sub">${b.tooltipSub}</div>` : '';
+
+  // Total + (for multi-day buckets) avg per active day so both numbers are
+  // available regardless of which mode the user picked for the chart.
+  let totalLine = `<div class="tt-total">${total.toFixed(total < 10 ? 2 : 1)}h logged`;
+  if (b.kind !== 'day' && b.activeDays > 0) {
+    const avg = b.avgHours;
+    totalLine += `<span style="font-weight:500;color:var(--text-muted);font-size:11.5px;margin-left:6px">· ${avg.toFixed(avg < 10 ? 2 : 1)}h/day avg (${b.activeDays} active)</span>`;
+  }
+  totalLine += `</div>`;
+
   el.innerHTML =
     `<div class="tt-title">${b.tooltipTitle}</div>`
     + subLine
-    + `<div class="tt-total">${total.toFixed(total < 10 ? 2 : 1)}h logged</div>`
+    + totalLine
     + (rows || emptyMsg);
   el.classList.add('visible');
 }
@@ -1712,9 +1794,33 @@ async function renderStats(period) {
   barChart.innerHTML = '';
   yAxis.innerHTML = '';
   const buckets = bucketizeForPeriod(dates, allData, period);
-  const maxHours = Math.max(...buckets.map(b => b.hours), 0);
-  const niceTop = (v) => v <= 1 ? 1 : v <= 2 ? 2 : v <= 4 ? 4 : v <= 6 ? 6 : v <= 8 ? 8 : v <= 12 ? 12 : v <= 20 ? 20 : v <= 40 ? 40 : v <= 60 ? 60 : Math.ceil(v / 10) * 10;
-  const yTop = niceTop(maxHours);
+
+  // Compute the value each bar represents based on the current mode.
+  //   'total' → sum of hours in the bucket
+  //   'avg'   → average hours across ACTIVE days in the bucket
+  // (avg is only meaningful when buckets span multiple days, i.e. not daily)
+  const bucketKind = buckets.length ? buckets[0].kind : 'day';
+  // In daily mode both give the same number — force to 'total' to avoid confusion.
+  const effectiveMode = bucketKind === 'day' ? 'total' : barMode;
+  buckets.forEach(b => { b.barValue = effectiveMode === 'avg' ? b.avgHours : b.hours; });
+
+  const maxVal = Math.max(...buckets.map(b => b.barValue), 0);
+  const niceTop = (v) => v <= 1 ? 1 : v <= 2 ? 2 : v <= 4 ? 4 : v <= 6 ? 6 : v <= 8 ? 8 : v <= 12 ? 12 : v <= 20 ? 20 : v <= 40 ? 40 : v <= 60 ? 60 : v <= 100 ? 100 : Math.ceil(v / 20) * 20;
+  const yTop = niceTop(maxVal);
+
+  // Toggle UI state: reflect current mode; grey out when daily.
+  document.querySelectorAll('#barModeToggle .bmt-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === effectiveMode);
+    b.style.opacity = bucketKind === 'day' ? '0.55' : '1';
+    b.disabled = bucketKind === 'day';
+  });
+  const subEl = document.getElementById('barModeSub');
+  if (subEl) {
+    const unit = bucketKind === 'day' ? 'day' : bucketKind === 'week' ? 'week' : bucketKind === 'month' ? 'month' : 'quarter';
+    subEl.textContent = effectiveMode === 'avg'
+      ? `Average hours per active day, per ${unit}`
+      : `Total hours per ${unit}`;
+  }
 
   // Empty state when nothing is logged in the whole period
   if (totalSlots === 0) {
@@ -1748,16 +1854,16 @@ async function renderStats(period) {
     col.className = 'bar-col';
 
     // Value label above the bar (only when few enough bars to fit)
-    if (b.hours > 0 && buckets.length <= 31) {
+    if (b.barValue > 0 && buckets.length <= 31) {
       const val = document.createElement('div');
       val.className = 'bar-val';
-      val.textContent = b.hours.toFixed(b.hours < 10 ? 1 : 0);
+      val.textContent = b.barValue.toFixed(b.barValue < 10 ? 1 : 0);
       col.appendChild(val);
     }
 
     const stack = document.createElement('div');
     stack.className = 'bar-stack';
-    stack.style.height = `${(b.hours / yTop) * 100}%`;
+    stack.style.height = `${(b.barValue / (yTop || 1)) * 100}%`;
 
     if (b.hours > 0) {
       const workTotal = b.workCounts.total;
