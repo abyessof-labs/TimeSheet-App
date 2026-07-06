@@ -571,6 +571,32 @@
       </div>
       <div class="settings-status" id="settingsStatus"></div>
     </div>
+
+    <div class="settings-card" style="margin-top:20px;">
+      <div class="settings-card-title">Data Location</div>
+      <p class="settings-hint">
+        Timesheet stores your data as one JSON file per day. Point this at a
+        folder inside OneDrive (e.g.&nbsp;<code>OneDrive\Apps\Timesheet</code>) to sync
+        across devices. To move your existing data: copy the <code>days</code> folder
+        and <code>categories.json</code> from the current location into the new one
+        <em>before</em> switching, then click&nbsp;“Choose folder” and pick the new location.
+        <br><br>
+        <strong>Don’t run Timesheet on two devices at the same time</strong> — wait
+        for OneDrive to finish syncing (green checkmark) before opening the
+        app on the other machine.
+      </p>
+      <div class="settings-field" style="margin-bottom:14px;">
+        <label class="settings-label">Current folder</label>
+        <div id="dataDirPath" style="font-size:12px;color:var(--text);word-break:break-all;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">…</div>
+        <div id="dataDirMeta" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
+      </div>
+      <div class="settings-actions">
+        <button class="export-btn" id="chooseDataDirBtn">Choose folder…</button>
+        <button class="export-btn secondary" id="openDataDirBtn">Open in Explorer</button>
+        <button class="export-btn secondary" id="resetDataDirBtn">Reset to default</button>
+      </div>
+      <div class="settings-status" id="dataDirStatus" style="color:var(--text-muted);"></div>
+    </div>
   </div>
 </div>
 
@@ -1672,12 +1698,66 @@ document.getElementById('resetRangeBtn').addEventListener('click', () => {
   if (applyRange(DEFAULT_START_MIN, DEFAULT_END_MIN)) settingsStatus('Reset to default (4:30 AM – 10:30 PM)');
 });
 
+// ── Data location (Settings tab) ─────────────────────────────────────────────
+function dataDirStatus(msg, isErr) {
+  const el = document.getElementById('dataDirStatus');
+  el.textContent = msg || '';
+  el.style.color = isErr ? '#ef4444' : 'var(--text-muted)';
+}
+
+async function refreshDataInfo() {
+  const info = await window.ts.getDataInfo();
+  document.getElementById('dataDirPath').textContent = info.dataDir;
+  const meta = [];
+  meta.push(info.isDefault ? 'Default location (local, not synced)' : 'Custom location');
+  meta.push(`${info.daysCount} day file${info.daysCount === 1 ? '' : 's'} present`);
+  if (info.oneDriveRoot && info.isDefault) {
+    meta.push(`OneDrive detected at ${info.oneDriveRoot}`);
+  }
+  document.getElementById('dataDirMeta').textContent = meta.join(' · ');
+}
+
+document.getElementById('chooseDataDirBtn').addEventListener('click', async () => {
+  const pick = await window.ts.pickDataDir();
+  if (pick.cancelled) return;
+  dataDirStatus('Applying…');
+  const res = await window.ts.setDataDir(pick.path);
+  if (!res.ok) { dataDirStatus(res.error || 'Failed to set folder', true); return; }
+  await refreshDataInfo();
+  // Reload categories from the new location so the UI stays consistent.
+  CATEGORIES = await window.ts.loadCategories();
+  CAT_MAP    = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+  buildLegend();
+  buildPicker();
+  dayCache = null;
+  onDateChange();
+  dataDirStatus('Data folder updated — reading from the new location now');
+});
+
+document.getElementById('openDataDirBtn').addEventListener('click', () => {
+  window.ts.openDataDir();
+});
+
+document.getElementById('resetDataDirBtn').addEventListener('click', async () => {
+  const res = await window.ts.resetDataDir();
+  if (!res.ok) { dataDirStatus('Failed to reset', true); return; }
+  await refreshDataInfo();
+  CATEGORIES = await window.ts.loadCategories();
+  CAT_MAP    = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+  buildLegend();
+  buildPicker();
+  dayCache = null;
+  onDateChange();
+  dataDirStatus('Reset to the default local location');
+});
+
 async function init() {
   CATEGORIES = await window.ts.loadCategories();
   CAT_MAP    = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
   buildLegend();
   buildPicker();
   populateSettingsInputs();
+  refreshDataInfo();
   onDateChange();
   startNowTimer();
 }

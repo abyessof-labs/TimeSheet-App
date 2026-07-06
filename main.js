@@ -1,17 +1,77 @@
-const { app, BrowserWindow, ipcMain, dialog, screen, Tray, Menu, nativeImage, powerMonitor } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, screen, Tray, Menu, nativeImage, powerMonitor, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs   = require('fs');
+const os   = require('os');
 
 // ── Storage ───────────────────────────────────────────────────────────────────
-// One JSON file per day in userData/days/. categories.json for category list.
-// No database, no WASM, no locking.
+// One JSON file per day in <DATA_DIR>/days/. categories.json for category list.
+// DATA_DIR defaults to userData but can be overridden via config.json — e.g.
+// pointed at a OneDrive folder to sync data across devices. See Settings tab.
 
-let DAYS_DIR, CATS_FILE;
+let DATA_DIR, DAYS_DIR, CATS_FILE, CONFIG_FILE;
+
+// The config file always lives in userData (never in the synced folder itself),
+// so each machine has its own pointer to wherever the data is.
+function configPath() {
+  return path.join(app.getPath('userData'), 'config.json');
+}
+
+function readConfig() {
+  try { return JSON.parse(fs.readFileSync(configPath(), 'utf8')) || {}; }
+  catch { return {}; }
+}
+
+function writeConfig(cfg) {
+  const tmp = configPath() + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2), 'utf8');
+  fs.renameSync(tmp, configPath());
+}
+
+// Best-effort guess for the user's OneDrive root (used as a suggestion, never
+// selected automatically). Reads OneDrive / OneDriveConsumer / OneDriveCommercial
+// env vars set by the OneDrive client on Windows, then falls back to a
+// conventional path under the home dir. Returns null if nothing plausible.
+function detectOneDriveRoot() {
+  const candidates = [
+    process.env.OneDrive,
+    process.env.OneDriveConsumer,
+    process.env.OneDriveCommercial,
+    path.join(os.homedir(), 'OneDrive'),
+  ].filter(Boolean);
+  for (const p of candidates) {
+    try { if (fs.existsSync(p) && fs.statSync(p).isDirectory()) return p; } catch {}
+  }
+  return null;
+}
+
+function defaultDataDir() {
+  return app.getPath('userData');
+}
+
+// Resolve the data dir from config, falling back to userData. If the configured
+// directory doesn't exist yet, we create it (that's the normal case when the
+// user picks an empty OneDrive folder for the first time on a new device).
+function resolveDataDir() {
+  const cfg = readConfig();
+  let dir = cfg.dataDir && String(cfg.dataDir).trim();
+  if (!dir) dir = defaultDataDir();
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    // If the configured path is unreachable (e.g. OneDrive folder for a
+    // different Windows profile), fall back to userData so the app still runs.
+    console.error('Data dir unreachable, falling back to userData:', e && e.message);
+    dir = defaultDataDir();
+  }
+  return dir;
+}
 
 function initPaths() {
-  DAYS_DIR  = path.join(app.getPath('userData'), 'days');
-  CATS_FILE = path.join(app.getPath('userData'), 'categories.json');
+  CONFIG_FILE = configPath();
+  DATA_DIR    = resolveDataDir();
+  DAYS_DIR    = path.join(DATA_DIR, 'days');
+  CATS_FILE   = path.join(DATA_DIR, 'categories.json');
   if (!fs.existsSync(DAYS_DIR)) fs.mkdirSync(DAYS_DIR, { recursive: true });
 }
 
@@ -81,6 +141,8 @@ function writeCategories(cats) {
 
 // ── Migration from SQLite (v1.1/v1.2) ────────────────────────────────────────
 // Runs once on first launch after upgrade. Safe to remove after v1.4.0.
+// Always looks in userData — the legacy SQLite DB never lived in a synced
+// data dir, so we don't check DATA_DIR here.
 function migrateFromSqlite() {
   const dbPath = path.join(app.getPath('userData'), 'timesheet.db');
   if (!fs.existsSync(dbPath) || fs.existsSync(CATS_FILE)) return;
@@ -221,6 +283,66 @@ ipcMain.handle('submitReminder', (_, slotKey, cat, text) => {
 });
 
 ipcMain.handle('dismissReminder', () => { if (reminderWin) reminderWin.close(); });
+
+// ── Data-location IPC ─────────────────────────────────────────────────────────
+// The Settings UI uses these to view and change where days/*.json and
+// categories.json live. Changing the location does NOT move existing files —
+// the user is expected to copy their days/ folder + categories.json into the
+// new location themselves (documented in the Settings hint and README).
+
+ipcMain.handle('getDataInfo', () => {
+  return {
+    dataDir:       DATA_DIR,
+    defaultDir:    defaultDataDir(),
+    isDefault:     DATA_DIR === defaultDataDir(),
+    oneDriveRoot:  detectOneDriveRoot(),
+    daysCount:     (() => { try { return fs.readdirSync(DAYS_DIR).filter(f => f.endsWith('.json')).length; } catch { return 0; } })(),
+  };
+});
+
+ipcMain.handle('pickDataDir', async () => {
+  const suggested = detectOneDriveRoot() || os.homedir();
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWin, {
+    title: 'Choose Timesheet data folder',
+    defaultPath: suggested,
+    properties: ['openDirectory', 'createDirectory'],
+    message: 'Pick a folder (e.g. inside OneDrive) where days/ and categories.json will live.',
+  });
+  if (canceled || !filePaths || !filePaths[0]) return { cancelled: true };
+  return { cancelled: false, path: filePaths[0] };
+});
+
+ipcMain.handle('setDataDir', async (_, newDir) => {
+  if (!newDir || typeof newDir !== 'string') return { ok: false, error: 'Invalid path' };
+  try {
+    if (!fs.existsSync(newDir)) fs.mkdirSync(newDir, { recursive: true });
+    // Write test — makes sure we can actually create files there.
+    const testFile = path.join(newDir, '.timesheet-write-test');
+    fs.writeFileSync(testFile, 'ok');
+    fs.unlinkSync(testFile);
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || 'Cannot write to that folder' };
+  }
+  const cfg = readConfig();
+  cfg.dataDir = newDir;
+  writeConfig(cfg);
+  // Re-init paths immediately so subsequent reads/writes use the new location
+  // (no restart needed for the current session).
+  initPaths();
+  return { ok: true, dataDir: DATA_DIR };
+});
+
+ipcMain.handle('resetDataDir', async () => {
+  const cfg = readConfig();
+  delete cfg.dataDir;
+  writeConfig(cfg);
+  initPaths();
+  return { ok: true, dataDir: DATA_DIR };
+});
+
+ipcMain.handle('openDataDir', () => {
+  shell.openPath(DATA_DIR).catch(() => {});
+});
 
 // ── Reminders ─────────────────────────────────────────────────────────────────
 

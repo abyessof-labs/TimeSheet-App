@@ -18,4 +18,11 @@ contextBridge.exposeInMainWorld('ts', {
   onWindowShown:    (cb)           => ipcRenderer.on('windowShown', () => cb()),
   checkForUpdates:  ()             => ipcRenderer.invoke('checkForUpdates'),
   onUpdateStatus:   (cb)           => ipcRenderer.on('updateStatus', (_, msg) => cb(msg)),
+
+  // Data location (Settings tab)
+  getDataInfo:      ()             => ipcRenderer.invoke('getDataInfo'),
+  pickDataDir:      ()             => ipcRenderer.invoke('pickDataDir'),
+  setDataDir:       (dir)          => ipcRenderer.invoke('setDataDir', dir),
+  resetDataDir:     ()             => ipcRenderer.invoke('resetDataDir'),
+  openDataDir:      ()             => ipcRenderer.invoke('openDataDir'),
 });
