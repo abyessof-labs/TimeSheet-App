@@ -1,6 +1,6 @@
 {
   "name": "timesheet",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Daily Timesheet",
   "author": "ABYESSOF Labs",
   "main": "main.js",
@@ -19,7 +19,9 @@
   "build": {
     "appId": "com.keypak.timesheet",
     "productName": "Timesheet",
-    "asarUnpack": ["node_modules/node-sqlite3-wasm/**/*"],
+    "asarUnpack": [
+      "node_modules/node-sqlite3-wasm/**/*"
+    ],
     "files": [
       "main.js",
       "preload.js",

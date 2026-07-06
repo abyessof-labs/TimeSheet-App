@@ -153,11 +153,39 @@
   .slot {
     display: flex; align-items: center; gap: 4px; background: var(--surface);
     border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;
-    min-height: 28px; transition: border-color .15s;
+    min-height: 28px; transition: border-color .15s, background .15s, box-shadow .15s;
   }
   .slot:focus-within { border-color: var(--accent); background: var(--surface2); }
-  .cat-btn { width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0; transition: transform .1s, opacity .15s; opacity: .85; }
+  .slot.slot-selected {
+    border-color: var(--accent);
+    background: rgba(79,142,247,.14);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .cat-btn { width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0; transition: transform .1s, opacity .15s, box-shadow .15s; opacity: .85; }
   .cat-btn:hover { transform: scale(1.25); opacity: 1; }
+  .slot.slot-selected .cat-btn { box-shadow: 0 0 0 2px var(--accent); }
+
+  /* Bulk-assign floating action bar (bottom of Daily Log) */
+  .bulk-bar {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--border);
+    box-shadow: 0 12px 32px rgba(0,0,0,.22);
+    border-radius: 12px; padding: 10px 12px;
+    display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+    z-index: 250; max-width: calc(100% - 32px);
+  }
+  .bulk-bar.open { display: flex; }
+  .bulk-count { font-size: 12px; font-weight: 700; color: var(--text); padding-right: 4px; border-right: 1px solid var(--border); margin-right: 2px; }
+  .bulk-side-toggle { display: inline-flex; background: var(--surface2); border-radius: 6px; padding: 2px; gap: 2px; }
+  .bulk-side-btn { background: transparent; border: none; color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+  .bulk-side-btn.active { background: var(--accent); color: #fff; }
+  .bulk-cats { display: flex; gap: 4px; flex-wrap: wrap; max-width: 460px; }
+  .bulk-cat-btn { display: inline-flex; align-items: center; gap: 5px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 11px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-family: inherit; transition: border-color .12s, background .12s; }
+  .bulk-cat-btn:hover { border-color: var(--accent); background: var(--surface); }
+  .bulk-cat-btn .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+  .bulk-clear { background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+  .bulk-clear:hover { border-color: #ef4444; color: #ef4444; }
+  .bulk-hint { font-size: 10.5px; color: var(--text-muted); }
   .slot-text { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-size: 12px; font-family: inherit; min-width: 0; line-height: 1.3; }
   .slot-text::placeholder { color: var(--text-muted); opacity: .5; }
 
@@ -309,18 +337,38 @@
   .bar-seg { width: 100%; transition: height .3s ease; }
   .bar-label { font-size: 9.5px; color: var(--text-muted); white-space: pre; text-align: center; margin-top: 6px; line-height: 1.2; font-weight: 500; }
   .chart-empty { display: flex; align-items: center; justify-content: center; height: 170px; color: var(--text-muted); font-size: 13px; }
+
+  /* Rich hover tooltip for chart bars — shows date, hours, category breakdown */
+  .chart-tooltip {
+    position: fixed; z-index: 500; pointer-events: none;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    padding: 10px 12px; min-width: 180px; max-width: 260px;
+    font-size: 12px; line-height: 1.35;
+    opacity: 0; transform: translateY(-4px); transition: opacity .1s, transform .1s;
+  }
+  .chart-tooltip.visible { opacity: 1; transform: translateY(0); }
+  .chart-tooltip .tt-title { font-weight: 700; margin-bottom: 4px; color: var(--text); }
+  .chart-tooltip .tt-sub   { font-size: 10.5px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .chart-tooltip .tt-total { font-weight: 700; margin-bottom: 8px; color: var(--text); font-size: 13px; }
+  .chart-tooltip .tt-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .chart-tooltip .tt-swatch { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .chart-tooltip .tt-name { flex: 1; color: var(--text); }
+  .chart-tooltip .tt-hours { color: var(--text-muted); font-weight: 600; }
+  .chart-tooltip .tt-empty { color: var(--text-muted); font-style: italic; }
   .donut-top { display: flex; justify-content: center; padding: 4px 0 18px; }
   #statsDonut { width: 172px; height: 172px; }
   .insights-row .stats-card { min-height: 0; }
 
   /* Planned vs Actual rows */
-  .pva-row { margin-bottom: 14px; }
+  .pva-row { margin-bottom: 14px; padding-right: 4px; }
   .pva-row:last-child { margin-bottom: 0; }
-  .pva-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
-  .pva-head .pva-day { color: var(--text-muted); font-weight: 600; }
-  .pva-head .pva-val { color: var(--text); font-weight: 600; }
+  .pva-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 12px; margin-bottom: 5px; }
+  .pva-head .pva-day { color: var(--text-muted); font-weight: 600; flex-shrink: 0; }
+  .pva-head .pva-val { color: var(--text); font-weight: 600; text-align: right; white-space: nowrap; }
   .pva-bars { display: flex; flex-direction: column; gap: 4px; }
-  .pva-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .pva-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; max-width: 100%; }
   .pva-fill { height: 100%; border-radius: 4px; transition: width .3s; }
   .pva-fill.planned { background: #94a3b8; }
   .pva-fill.actual  { background: var(--accent); }
@@ -420,6 +468,7 @@
       <input type="date" id="dateInput">
       <button id="nextDay" title="Next day">&#8250;</button>
       <button class="today-btn" id="todayBtn">Today</button>
+      <button id="selectModeBtn" title="Toggle multi-select. Then click category dots to select; Shift-click for a range. Or hold Ctrl and click a dot to enter select mode." style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;height:28px;">Select</button>
     </div>
   </div>
 
@@ -439,6 +488,16 @@
           <tbody id="timesheetBody"></tbody>
         </table>
         <div id="nowLine"><span class="now-time"></span></div>
+        <div class="bulk-bar" id="bulkBar">
+          <span class="bulk-count" id="bulkCount">0 selected</span>
+          <div class="bulk-side-toggle">
+            <button class="bulk-side-btn active" data-side="planned">Planned</button>
+            <button class="bulk-side-btn"        data-side="actual">Actual</button>
+          </div>
+          <div class="bulk-cats" id="bulkCats"></div>
+          <button class="bulk-clear" id="bulkClear">Clear</button>
+          <span class="bulk-hint">Esc to clear</span>
+        </div>
       </div>
 
       <aside class="sidebar">
@@ -670,6 +729,20 @@ let activeFilter = null;
 let CATEGORIES = [];
 let CAT_MAP = {};
 let dayCache = null; // cache for currentDate; null = invalid
+
+// Multi-select state (Daily Log).
+//   selectMode:      when true, plain click on a category dot toggles selection
+//                    instead of opening the picker.
+//   bulkSide:        which side ('planned' | 'actual') the bulk action bar is
+//                    targeting. Also used as the anchor side for Shift-range.
+//   selectedSlots:   Set of `${slotKey}|${side}` strings.
+//   selectAnchor:    { slotKey, side } for Shift-click range selection.
+let selectMode = false;
+let bulkSide = 'actual';
+const selectedSlots = new Set();
+let selectAnchor = null;
+function slotSelId(slotKey, side) { return `${slotKey}|${side}`; }
+function slotSelParse(id) { const [slotKey, side] = id.split('|'); return { slotKey, side }; }
 
 function todayString() {
   const d = new Date();
@@ -932,7 +1005,13 @@ async function buildTable() {
       const cat = CAT_MAP[saved.cat] || CAT_MAP['none'];
       catBtn.style.background = cat.color;
       catBtn.title = cat.label;
-      catBtn.addEventListener('click', e => openPicker(e, slot.key, side, catBtn));
+      // Tag both the .slot wrapper and the .cat-btn so the multi-select logic
+      // can find and toggle them by (slotKey, side).
+      slotDiv.dataset.slotKey = slot.key;
+      slotDiv.dataset.side = side;
+      catBtn.dataset.slotKey = slot.key;
+      catBtn.dataset.side = side;
+      catBtn.addEventListener('click', e => onCatBtnClick(e, slot.key, side, catBtn));
 
       const textInput = document.createElement('input');
       textInput.type  = 'text';
@@ -957,6 +1036,8 @@ async function buildTable() {
     tbody.appendChild(tr);
   });
   updateNowLine();
+  // Re-apply selection highlights after a full rebuild (e.g. filter clear).
+  applySelectionHighlights();
 }
 
 // ── Live "now" line + current 15-min block ──────────────────────────────────
@@ -1101,6 +1182,148 @@ document.querySelector('.left-col').addEventListener('scroll', () => {
   closePicker();
 }, { passive: true });
 
+// ── Multi-select (Daily Log) ───────────────────────────────────────────
+// The user can select multiple slots and assign them all to the same category:
+//   - Toggle the Select-mode button in the header, then click category dots
+//     to select them (Shift-click for a range on the same side).
+//   - Or hold Ctrl/Cmd (or Shift) while clicking any dot, which flips into
+//     Select mode implicitly.
+// The floating action bar at the bottom of the log applies a category to all
+// selected slots (choose Planned or Actual side on the bar).
+
+function onCatBtnClick(e, slotKey, side, btnEl) {
+  // Enter select mode implicitly if the user held Ctrl/Cmd/Shift.
+  const wantsMulti = selectMode || e.ctrlKey || e.metaKey || e.shiftKey;
+  if (!wantsMulti) return openPicker(e, slotKey, side, btnEl);
+
+  e.stopPropagation();
+  closePicker();
+  if (!selectMode) setSelectMode(true);
+
+  // Force the bulk bar to target the side we're clicking on. This makes
+  // it obvious what will change when you assign.
+  bulkSide = side;
+
+  if (e.shiftKey && selectAnchor && selectAnchor.side === side) {
+    // Range-select between anchor and this slot on the same side.
+    const iAnchor = SLOTS.findIndex(s => s.key === selectAnchor.slotKey);
+    const iThis   = SLOTS.findIndex(s => s.key === slotKey);
+    if (iAnchor >= 0 && iThis >= 0) {
+      const [lo, hi] = iAnchor < iThis ? [iAnchor, iThis] : [iThis, iAnchor];
+      for (let i = lo; i <= hi; i++) selectedSlots.add(slotSelId(SLOTS[i].key, side));
+    }
+  } else {
+    // Plain toggle.
+    const id = slotSelId(slotKey, side);
+    if (selectedSlots.has(id)) selectedSlots.delete(id);
+    else selectedSlots.add(id);
+    selectAnchor = { slotKey, side };
+  }
+  refreshBulkUI();
+}
+
+function applySelectionHighlights() {
+  document.querySelectorAll('#timesheetBody .slot').forEach(el => {
+    const id = slotSelId(el.dataset.slotKey, el.dataset.side);
+    el.classList.toggle('slot-selected', selectedSlots.has(id));
+  });
+}
+
+function clearSelection() {
+  selectedSlots.clear();
+  selectAnchor = null;
+  refreshBulkUI();
+}
+
+function setSelectMode(on) {
+  selectMode = !!on;
+  const btn = document.getElementById('selectModeBtn');
+  if (btn) {
+    btn.style.background   = selectMode ? 'var(--accent)' : 'var(--surface2)';
+    btn.style.color        = selectMode ? '#fff'          : 'var(--text-muted)';
+    btn.style.borderColor  = selectMode ? 'var(--accent)' : 'var(--border)';
+    btn.textContent = selectMode ? 'Selecting…' : 'Select';
+  }
+  if (!selectMode) clearSelection();
+  else refreshBulkUI();
+}
+
+function refreshBulkUI() {
+  const bar   = document.getElementById('bulkBar');
+  const count = document.getElementById('bulkCount');
+  const cats  = document.getElementById('bulkCats');
+  applySelectionHighlights();
+
+  const n = selectedSlots.size;
+  count.textContent = `${n} selected`;
+
+  // Side toggle reflects `bulkSide`.
+  document.querySelectorAll('.bulk-side-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.side === bulkSide);
+  });
+
+  // Rebuild the category buttons every time so newly added categories show up.
+  cats.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const b = document.createElement('button');
+    b.className = 'bulk-cat-btn';
+    b.dataset.catId = cat.id;
+    b.innerHTML = `<span class="dot" style="background:${cat.color}"></span>${cat.label}`;
+    b.addEventListener('click', () => applyBulkCategory(cat.id));
+    cats.appendChild(b);
+  });
+
+  bar.classList.toggle('open', selectMode || n > 0);
+}
+
+async function applyBulkCategory(catId) {
+  if (!selectedSlots.size) return;
+  const cat = CAT_MAP[catId];
+  if (!cat) return;
+
+  // Apply to every selected (slotKey, side). Group writes into a single day
+  // save so we don't thrash the day file on disk.
+  const data = await loadDay(currentDate);
+  selectedSlots.forEach(id => {
+    const { slotKey, side } = slotSelParse(id);
+    if (!data[slotKey]) data[slotKey] = {};
+    if (!data[slotKey][side]) data[slotKey][side] = { cat: 'none', text: '' };
+    data[slotKey][side].cat = catId;
+  });
+  await saveDay(currentDate, data);
+
+  // Update the category dots in-place so we don't lose selection state on rebuild.
+  selectedSlots.forEach(id => {
+    const { slotKey, side } = slotSelParse(id);
+    const btn = document.querySelector(`#timesheetBody .col-${side} .cat-btn[data-slot-key="${slotKey}"]`);
+    if (btn) {
+      btn.style.background = cat.color;
+      btn.title = cat.label;
+    }
+  });
+
+  drawChart();
+  drawWeekly();
+  if (activeFilter) applyFilter();
+}
+
+// Header button + side toggle + clear.
+document.getElementById('selectModeBtn').addEventListener('click', () => {
+  setSelectMode(!selectMode);
+});
+document.getElementById('bulkClear').addEventListener('click', () => {
+  setSelectMode(false);
+});
+document.querySelectorAll('.bulk-side-btn').forEach(b => {
+  b.addEventListener('click', () => { bulkSide = b.dataset.side; refreshBulkUI(); });
+});
+// Escape clears selection & exits Select mode.
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && (selectMode || selectedSlots.size)) {
+    setSelectMode(false);
+  }
+});
+
 // ── Date Navigation ───────────────────────────────────────────────────────────
 function formatDateLabel(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -1122,6 +1345,8 @@ function onDateChange() {
   document.title = `Timesheet — ${formatDateLabel(currentDate)}`;
   activeFilter = null;
   document.querySelectorAll('.legend-item').forEach(el => el.classList.remove('active-filter'));
+  // Changing day — a selection on the previous day makes no sense any more.
+  if (typeof clearSelection === 'function') clearSelection();
   buildTable().then(() => {
     // After the table renders, snap to now if viewing today.
     requestAnimationFrame(snapToNow);
@@ -1265,6 +1490,172 @@ function periodDates(period) {
   }
 }
 
+// Aggregate the per-day data into a set of bars sized to fit the card, based
+// on the selected period. Each bucket exposes:
+//   - hours: total ACTUAL work hours in the bucket
+//   - workCounts: { total: <slots>, byCat: { catId: <slots> } } (work only)
+//   - allCounts: { total, byCat } across every logged category (for tooltip)
+//   - plannedHours / plannedCounts: planned side, same shape
+//   - firstDate / lastDate: for click-through to Daily Log & tooltip label
+//   - axisLabel: short label under the bar
+//   - kind: 'day' | 'week' | 'month'
+function bucketizeForPeriod(dates, allData, period) {
+  // Decide bucketing strategy from the period key so long ranges still fit.
+  let kind;
+  if (period === 'week' || period === 'month') kind = 'day';
+  else if (period === '3m' || period === '6m') kind = 'week';
+  else kind = 'month'; // year / all
+
+  const buckets = [];
+  const bucketByKey = new Map();
+  const monthName = m => ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m];
+
+  function keyFor(date) {
+    const [y, m, d] = date.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (kind === 'day') return date;
+    if (kind === 'week') {
+      // ISO-ish week: bucket key = the Monday of that week (YYYY-MM-DD).
+      const dow = dt.getDay(); // 0=Sun ... 6=Sat
+      const back = dow === 0 ? 6 : dow - 1;
+      const monday = new Date(dt); monday.setDate(dt.getDate() - back);
+      const my = monday.getFullYear(), mm = monday.getMonth() + 1, md = monday.getDate();
+      return `${my}-${String(mm).padStart(2,'0')}-${String(md).padStart(2,'0')}`;
+    }
+    // month bucket
+    return `${y}-${String(m).padStart(2,'0')}`;
+  }
+
+  function ensureBucket(date) {
+    const k = keyFor(date);
+    let b = bucketByKey.get(k);
+    if (b) return b;
+    b = {
+      key: k, kind,
+      firstDate: date, lastDate: date,
+      hours: 0, plannedHours: 0,
+      workCounts:    { total: 0, byCat: {} },
+      allCounts:     { total: 0, byCat: {} },
+      plannedCounts: { total: 0, byCat: {} },
+    };
+    bucketByKey.set(k, b);
+    buckets.push(b);
+    return b;
+  }
+
+  dates.forEach(date => {
+    const b = ensureBucket(date);
+    if (date < b.firstDate) b.firstDate = date;
+    if (date > b.lastDate)  b.lastDate  = date;
+    const data = allData[date] || {};
+    SLOTS.forEach(s => {
+      const ac = (data[s.key] && data[s.key].actual)  || { cat: 'none' };
+      const pc = (data[s.key] && data[s.key].planned) || { cat: 'none' };
+      if (ac.cat !== 'none') {
+        b.allCounts.total++;
+        b.allCounts.byCat[ac.cat] = (b.allCounts.byCat[ac.cat] || 0) + 1;
+        if (isWorkCat(ac.cat)) {
+          b.workCounts.total++;
+          b.workCounts.byCat[ac.cat] = (b.workCounts.byCat[ac.cat] || 0) + 1;
+          b.hours += 0.25;
+        }
+      }
+      if (pc.cat !== 'none') {
+        b.plannedCounts.total++;
+        b.plannedCounts.byCat[pc.cat] = (b.plannedCounts.byCat[pc.cat] || 0) + 1;
+        if (isWorkCat(pc.cat)) b.plannedHours += 0.25;
+      }
+    });
+  });
+
+  // Axis labels + a stable index.
+  buckets.forEach((b, i) => {
+    b.idx = i;
+    const [fy, fm, fd] = b.firstDate.split('-').map(Number);
+    const [ly, lm, ld] = b.lastDate.split('-').map(Number);
+    if (kind === 'day') {
+      const dt = new Date(fy, fm - 1, fd);
+      const dow = dt.toLocaleDateString('en-US', { weekday: 'short' });
+      // "Mo\n6" when there's room; day number only otherwise.
+      b.axisLabel = buckets.length <= 14
+        ? `${dow.slice(0,2)}\n${fd}`
+        : (buckets.length <= 31 ? `${fd}` : (dow === 'Mon' ? `${fd}` : ''));
+      b.tooltipTitle = new Date(fy, fm - 1, fd).toLocaleDateString('en-US', {
+        weekday: 'long', month: 'short', day: 'numeric', year: 'numeric',
+      });
+      b.tooltipSub = '';
+    } else if (kind === 'week') {
+      b.axisLabel = `${monthName(fm - 1).slice(0,3)} ${fd}`;
+      b.tooltipTitle = `Week of ${monthName(fm - 1)} ${fd}`;
+      // Range subtitle — span first → last date in bucket.
+      b.tooltipSub = `${monthName(fm - 1)} ${fd} – ${monthName(lm - 1)} ${ld}`;
+    } else {
+      // month bucket — firstDate is anchored to the earliest day we saw in it
+      b.axisLabel = monthName(fm - 1);
+      b.tooltipTitle = `${monthName(fm - 1)} ${fy}`;
+      b.tooltipSub = '';
+    }
+  });
+
+  return buckets;
+}
+
+// ── Chart tooltip (used by Hours per Day) ──────────────────────────────
+function chartTooltipEl() {
+  let el = document.getElementById('chartTooltip');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'chartTooltip';
+    el.className = 'chart-tooltip';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function showBarTooltip(b) {
+  const el = chartTooltipEl();
+  const total = b.hours;
+  // Compose the category-breakdown list. Include all logged categories
+  // (work + non-work) so the user sees the full picture; sort by hours desc.
+  const rows = Object.entries(b.allCounts.byCat)
+    .sort((a, c) => c[1] - a[1])
+    .map(([catId, count]) => {
+      const cat = CAT_MAP[catId];
+      if (!cat) return '';
+      const hrs = (count * 0.25).toFixed(count * 0.25 < 10 ? 2 : 1);
+      const nonWorkTag = cat.isWork === false ? ' <span class="nonwork-tag">non-work</span>' : '';
+      return `<div class="tt-row"><span class="tt-swatch" style="background:${cat.color}"></span>`
+        + `<span class="tt-name">${cat.label}${nonWorkTag}</span>`
+        + `<span class="tt-hours">${hrs}h</span></div>`;
+    }).join('');
+  const emptyMsg = rows ? '' : '<div class="tt-empty">No time logged</div>';
+  const subLine = b.tooltipSub ? `<div class="tt-sub">${b.tooltipSub}</div>` : '';
+  el.innerHTML =
+    `<div class="tt-title">${b.tooltipTitle}</div>`
+    + subLine
+    + `<div class="tt-total">${total.toFixed(total < 10 ? 2 : 1)}h logged</div>`
+    + (rows || emptyMsg);
+  el.classList.add('visible');
+}
+
+function positionBarTooltip(ev) {
+  const el = chartTooltipEl();
+  if (!el.classList.contains('visible')) return;
+  const pad = 12;
+  const rect = el.getBoundingClientRect();
+  let x = ev.clientX + 14;
+  let y = ev.clientY - rect.height - 10;
+  if (x + rect.width  > window.innerWidth  - pad) x = ev.clientX - rect.width - 14;
+  if (y < pad) y = ev.clientY + 18;
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+}
+
+function hideBarTooltip() {
+  const el = document.getElementById('chartTooltip');
+  if (el) el.classList.remove('visible');
+}
+
 async function renderStats(period) {
   const { from, to } = periodDates(period);
   const allData = await window.ts.loadRange(from, to);
@@ -1313,16 +1704,16 @@ async function renderStats(period) {
     <div class="stat-card" style="--sc-accent:${topCat ? topCat.color : '#a855f7'}"><div class="sc-label">Top Category</div><div class="sc-value" style="font-size:19px">${topCat ? topCat.label : '—'}</div><div class="sc-sub">${topCatId ? (topCatId[1]*0.25).toFixed(1)+'h logged' : 'no data yet'}</div></div>
   `;
 
-  // Bar chart
+  // Bar chart — aggregates days into weeks/months for long periods so bars
+  // fit inside the card without horizontal overflow, and hover shows a rich
+  // tooltip with the category breakdown.
   const barChart = document.getElementById('barChart');
   const yAxis    = document.getElementById('yAxis');
   barChart.innerHTML = '';
   yAxis.innerHTML = '';
-  // Show last N days intelligently
-  const BAR_MAX = 60;
-  const showDates = dates.length > BAR_MAX ? dates.slice(-BAR_MAX) : dates;
-  const maxHours = Math.max(...showDates.map(d => (dailyTotals[d] || 0) * 0.25), 0);
-  const niceTop = (v) => v <= 1 ? 1 : v <= 2 ? 2 : v <= 4 ? 4 : v <= 6 ? 6 : v <= 8 ? 8 : v <= 12 ? 12 : Math.ceil(v / 4) * 4;
+  const buckets = bucketizeForPeriod(dates, allData, period);
+  const maxHours = Math.max(...buckets.map(b => b.hours), 0);
+  const niceTop = (v) => v <= 1 ? 1 : v <= 2 ? 2 : v <= 4 ? 4 : v <= 6 ? 6 : v <= 8 ? 8 : v <= 12 ? 12 : v <= 20 ? 20 : v <= 40 ? 40 : v <= 60 ? 60 : Math.ceil(v / 10) * 10;
   const yTop = niceTop(maxHours);
 
   // Empty state when nothing is logged in the whole period
@@ -1352,44 +1743,29 @@ async function renderStats(period) {
     }
   }
 
-  showDates.forEach(date => {
-    const slots = dailyTotals[date] || 0;
-    const hours = slots * 0.25;
-    const data  = allData[date] || {};
-    const [dy, dm, dd] = date.split('-').map(Number);
-    const dateObj = new Date(dy, dm - 1, dd);
-    const dow = dateObj.toLocaleDateString('en-US',{weekday:'short'});
-
+  buckets.forEach(b => {
     const col = document.createElement('div');
     col.className = 'bar-col';
-    col.title = `${date}: ${hours.toFixed(2)}h`;
 
     // Value label above the bar (only when few enough bars to fit)
-    if (slots > 0 && showDates.length <= 31) {
+    if (b.hours > 0 && buckets.length <= 31) {
       const val = document.createElement('div');
       val.className = 'bar-val';
-      val.textContent = hours.toFixed(hours < 10 ? 1 : 0);
+      val.textContent = b.hours.toFixed(b.hours < 10 ? 1 : 0);
       col.appendChild(val);
     }
 
     const stack = document.createElement('div');
     stack.className = 'bar-stack';
-    // Scale against the y-axis top so heights line up with the gridlines.
-    const heightPct = (hours / yTop) * 100;
-    stack.style.height = `${heightPct}%`;
+    stack.style.height = `${(b.hours / yTop) * 100}%`;
 
-    if (slots > 0) {
-      // Only work categories make up the bar (matches the work-hours value).
-      const counts = {};
-      SLOTS.forEach(s => {
-        const a = (data[s.key] && data[s.key].actual) || { cat: 'none' };
-        if (a.cat !== 'none' && isWorkCat(a.cat)) counts[a.cat] = (counts[a.cat] || 0) + 1;
-      });
-      Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([catId, count]) => {
+    if (b.hours > 0) {
+      const workTotal = b.workCounts.total;
+      Object.entries(b.workCounts.byCat).sort((a,b)=>b[1]-a[1]).forEach(([catId, count]) => {
         const cat = CAT_MAP[catId]; if (!cat) return;
         const seg = document.createElement('div');
         seg.className = 'bar-seg';
-        seg.style.height  = `${(count / slots) * 100}%`;
+        seg.style.height  = `${(count / workTotal) * 100}%`;
         seg.style.background = cat.color;
         stack.appendChild(seg);
       });
@@ -1397,14 +1773,18 @@ async function renderStats(period) {
 
     const label = document.createElement('div');
     label.className = 'bar-label';
-    // Show Mon label only on Mondays, or day number if enough space
-    if (showDates.length <= 14) label.textContent = `${dow.slice(0,2)}\n${dd}`;
-    else if (dow === 'Mon') label.textContent = `${dd}`;
-    else label.textContent = '';
+    label.textContent = b.axisLabel;
 
     col.appendChild(stack);
     col.appendChild(label);
-    col.addEventListener('click', () => { currentDate = date; onDateChange(); document.querySelector('.tab-btn[data-tab="timesheet"]').click(); });
+    col.addEventListener('mouseenter', (ev) => { showBarTooltip(b); positionBarTooltip(ev); });
+    col.addEventListener('mousemove',  (ev) => positionBarTooltip(ev));
+    col.addEventListener('mouseleave', hideBarTooltip);
+    col.addEventListener('click', () => {
+      currentDate = b.firstDate;
+      onDateChange();
+      document.querySelector('.tab-btn[data-tab="timesheet"]').click();
+    });
     barChart.appendChild(col);
   });
 
