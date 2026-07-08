@@ -344,6 +344,23 @@ ipcMain.handle('openDataDir', () => {
   shell.openPath(DATA_DIR).catch(() => {});
 });
 
+// ── Reminder/day-window IPC ────────────────────────────────────────
+// The renderer's Settings tab writes the start/end minutes here so both the
+// Daily Log AND the reminder scheduler use the same range. Persisted in
+// config.json alongside dataDir.
+ipcMain.handle('getDayWindow', () => getDayWindow());
+
+ipcMain.handle('setDayWindow', (_, { startMin, endMin }) => {
+  if (!Number.isInteger(startMin) || !Number.isInteger(endMin) || endMin <= startMin) {
+    return { ok: false, error: 'Invalid range' };
+  }
+  const cfg = readConfig();
+  cfg.startMin = startMin;
+  cfg.endMin   = endMin;
+  writeConfig(cfg);
+  return { ok: true, startMin, endMin };
+});
+
 // ── Reminders ─────────────────────────────────────────────────────────────────
 
 function todayString() {
@@ -379,9 +396,38 @@ function currentQuarterId() {
 
 let lastFiredQuarter = null;
 
+// The reminder-time-range defaults match the Daily Log defaults so, out of the
+// box, popups fire during the same 4:30 AM – 10:30 PM window shown in the log.
+const REMINDER_DEFAULT_START_MIN = 4 * 60 + 30;   // 4:30 AM
+const REMINDER_DEFAULT_END_MIN   = 22 * 60 + 30;  // 10:30 PM
+
+// Read the active day window from config.json, falling back to defaults.
+// The renderer keeps this in sync via setDayWindow (see IPC below).
+function getDayWindow() {
+  const cfg = readConfig();
+  const s = Number.isInteger(cfg.startMin) ? cfg.startMin : REMINDER_DEFAULT_START_MIN;
+  const e = Number.isInteger(cfg.endMin)   ? cfg.endMin   : REMINDER_DEFAULT_END_MIN;
+  if (e <= s) return { startMin: REMINDER_DEFAULT_START_MIN, endMin: REMINDER_DEFAULT_END_MIN };
+  return { startMin: s, endMin: e };
+}
+
+// Should we fire a reminder for the just-ended quarter? The rule: the START
+// of that quarter must lie within [startMin, endMin). This mirrors the log,
+// which lays out slots from startMin (inclusive) up to endMin (exclusive).
+function isSlotWithinDayWindow(slotKey) {
+  const [h, m] = slotKey.split(':').map(Number);
+  const mins = h * 60 + m;
+  const { startMin, endMin } = getDayWindow();
+  return mins >= startMin && mins < endMin;
+}
+
 function fireReminder() {
   const slot = prevSlotInfo();
   if (!slot) return;
+  // Respect the user's Settings → Daily Log Time Range: no popups before
+  // startMin or after endMin. Slots outside the range are silently skipped
+  // (the watchdog will still be running for the next in-range slot).
+  if (!isSlotWithinDayWindow(slot.key)) return;
   const dayData = readDay(todayString());
   createReminder(slot.key, slot.label, (dayData[slot.key] && dayData[slot.key].planned) || null);
 }

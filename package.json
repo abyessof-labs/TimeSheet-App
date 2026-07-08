@@ -1,6 +1,6 @@
 {
   "name": "timesheet",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Daily Timesheet",
   "author": "ABYESSOF Labs",
   "main": "main.js",

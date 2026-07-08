@@ -2165,8 +2165,15 @@ function applyRange(newStart, newEnd) {
   }
   START_MIN = newStart;
   END_MIN   = newEnd;
+  // Persist locally (fast, same-machine cache) AND push to main so the
+  // reminder scheduler in main.js honours the same window. The main process
+  // stores this in config.json alongside dataDir; without this call the
+  // popup would keep firing outside the visible time range.
   localStorage.setItem('startMin', String(START_MIN));
   localStorage.setItem('endMin', String(END_MIN));
+  if (window.ts && window.ts.setDayWindow) {
+    window.ts.setDayWindow({ startMin: START_MIN, endMin: END_MIN }).catch(() => {});
+  }
   rebuildSlots();
   dayCache = null;
   buildTable().then(() => requestAnimationFrame(snapToNow));
@@ -2174,6 +2181,33 @@ function applyRange(newStart, newEnd) {
   drawWeekly();
   populateSettingsInputs();
   return true;
+}
+
+// On startup, ask main for the authoritative day window (which is what the
+// reminder scheduler uses). If main has never been told (still on defaults)
+// but this browser has an older localStorage value from before the fix, push
+// that up so the two stay in sync going forward.
+async function syncDayWindowFromMain() {
+  if (!window.ts || !window.ts.getDayWindow) return;
+  try {
+    const w = await window.ts.getDayWindow();
+    const isMainDefault = (w.startMin === DEFAULT_START_MIN && w.endMin === DEFAULT_END_MIN);
+    const localS = parseInt(localStorage.getItem('startMin'), 10);
+    const localE = parseInt(localStorage.getItem('endMin'), 10);
+    const hasLocal = !isNaN(localS) && !isNaN(localE) && localE > localS;
+    if (isMainDefault && hasLocal && (localS !== w.startMin || localE !== w.endMin)) {
+      // Migrate: renderer used to be the source of truth; push its value to main.
+      await window.ts.setDayWindow({ startMin: localS, endMin: localE });
+      START_MIN = localS; END_MIN = localE;
+    } else {
+      // Main is authoritative — mirror its value locally so both sides agree.
+      START_MIN = w.startMin; END_MIN = w.endMin;
+      localStorage.setItem('startMin', String(START_MIN));
+      localStorage.setItem('endMin',   String(END_MIN));
+    }
+    rebuildSlots();
+    populateSettingsInputs();
+  } catch {}
 }
 document.getElementById('saveRangeBtn').addEventListener('click', () => {
   const s = timeInputToMinutes(document.getElementById('setStart').value);
@@ -2238,6 +2272,9 @@ document.getElementById('resetDataDirBtn').addEventListener('click', async () =>
 });
 
 async function init() {
+  // Sync the day window from main first so SLOTS/labels reflect the
+  // authoritative value before we build the table.
+  await syncDayWindowFromMain();
   CATEGORIES = await window.ts.loadCategories();
   CAT_MAP    = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
   buildLegend();

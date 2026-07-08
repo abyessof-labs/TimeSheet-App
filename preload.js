@@ -25,4 +25,8 @@ contextBridge.exposeInMainWorld('ts', {
   setDataDir:       (dir)          => ipcRenderer.invoke('setDataDir', dir),
   resetDataDir:     ()             => ipcRenderer.invoke('resetDataDir'),
   openDataDir:      ()             => ipcRenderer.invoke('openDataDir'),
+
+  // Daily time window — shared between the Daily Log and the reminder scheduler
+  getDayWindow:     ()             => ipcRenderer.invoke('getDayWindow'),
+  setDayWindow:     (w)            => ipcRenderer.invoke('setDayWindow', w),
 });
